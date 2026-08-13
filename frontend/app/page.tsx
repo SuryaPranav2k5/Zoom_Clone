@@ -49,6 +49,7 @@ export default function ZoomDashboard() {
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -177,15 +178,16 @@ export default function ZoomDashboard() {
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-2.5 p-1.5 hover:bg-gray-100 rounded-full transition-all cursor-pointer"
               >
-                {user.avatar_url ? (
+                {user.avatar_url && !avatarImgError ? (
                   <img
                     src={user.avatar_url}
                     alt={user.full_name}
+                    onError={() => setAvatarImgError(true)}
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100">
-                    {user.full_name.slice(0, 2).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100 shrink-0">
+                    {user.full_name ? user.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "SP"}
                   </div>
                 )}
                 <span className="hidden sm:inline text-xs font-semibold text-gray-700">

@@ -76,13 +76,17 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      // Save Google User Profile directly to auth context
+      const initials = userName ? userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "SP";
+      const svgAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="#0e71eb"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="24" font-weight="bold">${initials}</text></svg>`
+      )}`;
+
       localStorage.setItem("zoom_auth_token", "google_token_" + Date.now());
       localStorage.setItem("zoom_auth_user", JSON.stringify({
         id: Date.now(),
         full_name: userName,
         email: userEmail,
-        avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`,
+        avatar_url: svgAvatar,
         provider: "GOOGLE",
         created_at: new Date().toISOString()
       }));
