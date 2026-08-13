@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Video, Mail, Lock, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
@@ -14,6 +14,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize real Google Identity Services SDK if Client ID is configured
+  useEffect(() => {
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (googleClientId && googleClientId !== "your_google_client_id_here") {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if ((window as any).google) {
+          (window as any).google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: async (response: any) => {
+              if (response.credential) {
+                try {
+                  await loginWithGoogle(response.credential);
+                  router.push("/");
+                } catch (err: any) {
+                  setError("Google OAuth verification failed.");
+                }
+              }
+            },
+          });
+        }
+      };
+      document.body.appendChild(script);
+    }
+  }, [loginWithGoogle, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,13 +58,35 @@ export default function LoginPage() {
     }
   };
 
-  const handleSimulateGoogleLogin = async () => {
+  const handleGoogleClick = async () => {
     setError("");
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+    // If real Google Client ID is configured, trigger Google prompt
+    if (googleClientId && googleClientId !== "your_google_client_id_here" && (window as any).google) {
+      (window as any).google.accounts.id.prompt();
+      return;
+    }
+
+    // Demo Mode: Allow user to type their real Google Name & Email
+    const userEmail = prompt("Enter your Google Account Email:", "surya.pranav@gmail.com");
+    if (!userEmail) return;
+    const userName = prompt("Enter your Google Account Name:", "Surya Pranav");
+    if (!userName) return;
+
     setIsSubmitting(true);
     try {
-      const simulatedGoogleToken = "mock_google_id_token_" + Date.now();
-      await loginWithGoogle(simulatedGoogleToken);
-      router.push("/");
+      // Save Google User Profile directly to auth context
+      localStorage.setItem("zoom_auth_token", "google_token_" + Date.now());
+      localStorage.setItem("zoom_auth_user", JSON.stringify({
+        id: Date.now(),
+        full_name: userName,
+        email: userEmail,
+        avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`,
+        provider: "GOOGLE",
+        created_at: new Date().toISOString()
+      }));
+      window.location.href = "/";
     } catch (err: any) {
       setError(err.message || "Google Sign-In failed.");
     } finally {
@@ -79,7 +130,7 @@ export default function LoginPage() {
           {/* Google OAuth Button */}
           <button
             type="button"
-            onClick={handleSimulateGoogleLogin}
+            onClick={handleGoogleClick}
             className="w-full py-3 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 flex items-center justify-center gap-3 shadow-xs transition-all cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
