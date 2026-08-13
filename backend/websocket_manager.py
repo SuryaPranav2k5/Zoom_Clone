@@ -103,7 +103,12 @@ class ConnectionManager:
                     )
 
             # Cancel host grace timer if host reconnected
-            if participant.is_host:
+            is_host_participant = participant.is_host if participant else requested_is_host
+            display_name_val = participant.display_name if participant else display_name
+            is_muted_val = participant.is_muted if participant else False
+            is_video_off_val = participant.is_video_off if participant else False
+
+            if is_host_participant:
                 room.host_token = client_token
                 if room.host_grace_timer and not room.host_grace_timer.done():
                     room.host_grace_timer.cancel()
@@ -117,10 +122,10 @@ class ConnectionManager:
             room.active_connections[client_token] = websocket
             room.participants[client_token] = {
                 "client_token": client_token,
-                "display_name": participant.display_name,
-                "is_host": participant.is_host,
-                "is_muted": participant.is_muted,
-                "is_video_off": participant.is_video_off
+                "display_name": display_name_val,
+                "is_host": is_host_participant,
+                "is_muted": is_muted_val,
+                "is_video_off": is_video_off_val
             }
 
             # Send JOIN_SUCCESS to connecting client

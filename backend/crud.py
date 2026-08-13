@@ -2,8 +2,9 @@ import random
 import datetime
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from models import Meeting, Participant
-from schemas import InstantMeetingCreate, ScheduledMeetingCreate
+from models import Meeting, Participant, User
+from schemas import InstantMeetingCreate, ScheduledMeetingCreate, UserSignupRequest
+import auth
 
 def generate_meeting_id() -> str:
     """Generates a strictly 10-digit numeric Zoom meeting ID formatted as XXX-XXX-XXXX (e.g. 845-912-3401)"""
@@ -138,12 +139,10 @@ def get_or_create_participant(
             is_kicked=False,
             joined_at=now
         )
-from models import Meeting, Participant, User
-from schemas import InstantMeetingCreate, ScheduledMeetingCreate, UserSignupRequest
-import auth
-
-# Existing CRUD functions...
-# (lines above)
+        db.add(participant)
+        db.commit()
+        db.refresh(participant)
+        return participant
 
 def create_user(db: Session, data: UserSignupRequest) -> User:
     hashed_pwd, salt = auth.hash_password(data.password)
