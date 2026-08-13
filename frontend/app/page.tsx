@@ -45,7 +45,7 @@ interface MeetingItem {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
 
   // Data state
   const [upcomingMeetings, setUpcomingMeetings] = useState<MeetingItem[]>([]);
@@ -58,6 +58,8 @@ export default function DashboardPage() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [isShareScreenOpen, setIsShareScreenOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [shareMeetingIdInput, setShareMeetingIdInput] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
@@ -310,9 +312,19 @@ export default function DashboardPage() {
                       logout();
                       setUserDropdownOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors cursor-pointer border-b border-gray-100"
                   >
                     Log Out
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      setIsDeleteAccountOpen(true);
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Account
                   </button>
                 </div>
               )}
@@ -692,6 +704,50 @@ export default function DashboardPage() {
         recentMeetings={recentMeetings}
         upcomingMeetings={upcomingMeetings}
       />
+
+      {/* Delete Account Confirmation Modal */}
+      {isDeleteAccountOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-gray-100 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-gray-900">Delete Your Account?</h3>
+              <p className="text-xs text-gray-500">
+                Are you sure you want to permanently delete your account (<strong className="text-gray-700">{user?.email}</strong>)? This action will remove your account from the database.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteAccountOpen(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={async () => {
+                  setIsDeletingAccount(true);
+                  try {
+                    await deleteAccount();
+                  } catch (err) {
+                    console.error("Error deleting account:", err);
+                  } finally {
+                    setIsDeletingAccount(false);
+                    setIsDeleteAccountOpen(false);
+                  }
+                }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingAccount ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Toast Popup Notification */}
       {toastMsg && (

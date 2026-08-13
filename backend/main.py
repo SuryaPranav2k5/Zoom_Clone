@@ -2,7 +2,7 @@ import os
 import datetime
 from contextlib import asynccontextmanager
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -140,6 +140,31 @@ def get_me(authorization: Optional[str] = Query(None), db: Session = Depends(get
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     return UserResponse.model_validate(user)
+
+@app.delete("/api/auth/account")
+def delete_account(
+    authorization: Optional[str] = Header(None),
+    user_email: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    user_to_delete = None
+    if authorization:
+        token = authorization.replace("Bearer ", "").strip()
+        user_id = auth.get_user_id_from_token(token)
+        if user_id:
+            user_to_delete = crud.get_user_by_id(db, user_id)
+    
+    if not user_to_delete and user_email:
+        user_to_delete = crud.get_user_by_email(db, user_email)
+
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    deleted = crud.delete_user(db, user_to_delete.id)
+    if not deleted:
+        raise HTTPException(status_code=400, detail="Failed to delete account.")
+
+    return {"message": "Account successfully deleted from database."}
 
 # --------------------------
 # REST APIs for Meetings

@@ -176,6 +176,19 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     return db.query(User).filter(User.id == user_id).first()
 
+def delete_user(db: Session, user_id: int) -> bool:
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return False
+    # Unlink action items assigned to user before deleting
+    db.query(ActionItem).filter(ActionItem.assigned_to_user_id == user_id).update(
+        {ActionItem.assigned_to_user_id: None, ActionItem.assigned_to_name: user.full_name},
+        synchronize_session=False
+    )
+    db.delete(user)
+    db.commit()
+    return True
+
 def verify_user_credentials(db: Session, email: str, password: str) -> Optional[User]:
     user = get_user_by_email(db, email)
     if user and user.hashed_password and user.salt:

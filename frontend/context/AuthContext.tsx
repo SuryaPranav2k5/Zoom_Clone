@@ -20,6 +20,7 @@ interface AuthContextType {
   signup: (fullName: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,8 +110,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("zoom_auth_user");
   };
 
+  const deleteAccount = async () => {
+    try {
+      const savedToken = localStorage.getItem("zoom_auth_token");
+      const savedUser = localStorage.getItem("zoom_auth_user");
+      const parsedUser = savedUser ? JSON.parse(savedUser) : null;
+      const emailParam = parsedUser?.email ? `?user_email=${encodeURIComponent(parsedUser.email)}` : "";
+
+      await fetch(`${API_BASE_URL}/api/auth/account${emailParam}`, {
+        method: "DELETE",
+        headers: {
+          ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {})
+        }
+      });
+    } catch (err) {
+      console.error("Error calling delete account endpoint:", err);
+    } finally {
+      logout();
+      window.location.href = "/login";
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, signup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, signup, loginWithGoogle, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );
