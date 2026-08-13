@@ -142,14 +142,19 @@ export default function ZoomDashboard() {
   }, [recentMeetings, user]);
 
   const handleInstantMeeting = async () => {
+    if (!user) {
+      showToast("Please sign in to start a new meeting.", "info");
+      router.push("/login");
+      return;
+    }
     try {
-      const hostName = user?.full_name || "Host User";
+      const hostName = user.full_name || "Host User";
       const res = await fetch("http://127.0.0.1:8000/api/meetings/instant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           host_name: hostName,
-          host_email: user?.email || null,
+          host_email: user.email || null,
           title: `${hostName}'s Zoom Meeting`
         }),
       });
@@ -160,6 +165,15 @@ export default function ZoomDashboard() {
     } catch (err) {
       showToast("Unable to create instant meeting. Ensure backend server is running.", "error");
     }
+  };
+
+  const handleOpenSchedule = () => {
+    if (!user) {
+      showToast("Please sign in to schedule a meeting.", "info");
+      router.push("/login");
+      return;
+    }
+    setIsScheduleOpen(true);
   };
 
   const handleJoinFromModal = (
@@ -369,7 +383,7 @@ export default function ZoomDashboard() {
 
               {/* Schedule (Blue outline) */}
               <button
-                onClick={() => setIsScheduleOpen(true)}
+                onClick={handleOpenSchedule}
                 className="group bg-white hover:bg-blue-50/50 p-5 rounded-2xl border border-gray-200 hover:border-blue-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
               >
                 <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-xs mb-3 group-hover:scale-105 transition-transform border border-blue-200">
