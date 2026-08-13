@@ -158,7 +158,7 @@ export default function ZoomDashboard() {
         router.push(`/meeting/${data.id}?host=true&name=${encodeURIComponent(hostName)}`);
       }
     } catch (err) {
-      alert("Unable to create instant meeting. Ensure backend server is running.");
+      showToast("Unable to create instant meeting. Ensure backend server is running.", "error");
     }
   };
 
@@ -233,64 +233,42 @@ export default function ZoomDashboard() {
     <div className="min-h-screen bg-[#f7f9fa] flex flex-col font-sans">
       {/* Top Navbar */}
       <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-        {/* Brand Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#0e71eb] rounded-xl flex items-center justify-center text-white shadow-md">
-            <Video className="w-5 h-5 fill-current" />
+          <div className="w-9 h-9 zoom-blue-btn rounded-xl flex items-center justify-center text-white shadow-md">
+            <Video className="w-5 h-5" />
           </div>
-          <span className="text-xl font-bold text-gray-900 tracking-tight">zoom</span>
-          <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
-            Workspaces
+          <span className="text-xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">
+            Zoom
           </span>
         </div>
 
-        {/* Global Search Bar */}
-        <div className="hidden md:flex items-center bg-gray-100/80 rounded-full px-4 py-2 w-80 border border-gray-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-          <Search className="w-4 h-4 text-gray-400 mr-2" />
-          <input
-            type="text"
-            placeholder="Search meetings, contacts..."
-            className="bg-transparent text-sm text-gray-800 outline-hidden w-full placeholder-gray-400"
-          />
-        </div>
-
-        {/* User & Settings Right Bar */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchMeetings}
-            title="Refresh Data"
-            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
-          </button>
-
+        {/* User Profile / Auth Status */}
+        <div className="flex items-center gap-4">
           {user ? (
             <div className="relative">
               <button
-                type="button"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-2.5 p-1.5 hover:bg-gray-100 rounded-full transition-all cursor-pointer"
+                className="flex items-center gap-2.5 bg-gray-100/80 hover:bg-gray-200/80 p-1.5 pr-3 rounded-full transition-all cursor-pointer"
               >
-                {user.avatar_url && !avatarImgError ? (
-                  <img
-                    src={user.avatar_url}
-                    alt={user.full_name}
-                    referrerPolicy="no-referrer"
-                    onError={() => setAvatarImgError(true)}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500 shrink-0"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100 shrink-0">
-                    {user.full_name ? user.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "SP"}
-                  </div>
-                )}
-                <span className="hidden sm:inline text-xs font-semibold text-gray-700">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs overflow-hidden shadow-inner">
+                  {user.avatar_url && !avatarImgError ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.full_name}
+                      onError={() => setAvatarImgError(true)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.full_name ? user.full_name.slice(0, 2).toUpperCase() : "U"
+                  )}
+                </div>
+                <span className="text-xs font-semibold text-gray-800 max-w-[120px] truncate">
                   {user.full_name}
                 </span>
               </button>
 
               {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in duration-150">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="text-xs font-bold text-gray-900 truncate">{user.full_name}</p>
                     <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
@@ -335,14 +313,14 @@ export default function ZoomDashboard() {
         {/* Left Hero & Action Grid (7 Columns) */}
         <div className="lg:col-span-7 space-y-8">
           {/* Live Date/Time Clock Card */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
               <div>
-                <h1 className="text-4xl font-extrabold tracking-tight">
-                  {currentTime ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "12:00 PM"}
-                </h1>
-                <p className="text-blue-100 text-sm font-medium mt-1">
+                <p className="text-4xl md:text-5xl font-black tracking-tight font-mono">
+                  {currentTime ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "--:--:--"}
+                </p>
+                <p className="text-sm text-blue-200 font-medium mt-1">
                   {currentTime ? currentTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ""}
                 </p>
               </div>
@@ -386,15 +364,15 @@ export default function ZoomDashboard() {
                 <span className="text-sm font-bold text-gray-800 group-hover:text-blue-600">
                   Join
                 </span>
-                <span className="text-xs text-gray-400 mt-0.5">Via ID or link</span>
+                <span className="text-xs text-gray-400 mt-0.5">Via Meeting ID</span>
               </button>
 
-              {/* Schedule (Blue) */}
+              {/* Schedule (Blue outline) */}
               <button
                 onClick={() => setIsScheduleOpen(true)}
                 className="group bg-white hover:bg-blue-50/50 p-5 rounded-2xl border border-gray-200 hover:border-blue-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
               >
-                <div className="w-14 h-14 zoom-blue-btn rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-xs mb-3 group-hover:scale-105 transition-transform border border-blue-200">
                   <Calendar className="w-7 h-7" />
                 </div>
                 <span className="text-sm font-bold text-gray-800 group-hover:text-blue-600">
@@ -405,7 +383,7 @@ export default function ZoomDashboard() {
 
               {/* Share Screen (Blue Placeholder) */}
               <button
-                onClick={() => alert("Share Screen feature placeholder. Join a meeting to share screen.")}
+                onClick={() => showToast("Share Screen feature available inside active meetings.", "info")}
                 className="group bg-white hover:bg-gray-50 p-5 rounded-2xl border border-gray-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all opacity-80 cursor-pointer"
               >
                 <div className="w-14 h-14 bg-gray-700 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
