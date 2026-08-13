@@ -703,36 +703,36 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="h-screen w-screen zoom-dark-bg text-white flex flex-col overflow-hidden font-sans select-none">
       {/* Top Header */}
-      <header className="h-14 zoom-dark-toolbar px-6 flex items-center justify-between border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-xs">
+      <header className="h-14 zoom-dark-toolbar px-3 md:px-6 flex items-center justify-between border-b border-gray-800 shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-xs shrink-0">
             <VideoIcon className="w-4 h-4" />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-gray-100 flex items-center gap-2">
-              {meetingDetails?.title || "Zoom Meeting"}
+          <div className="truncate max-w-[160px] sm:max-w-xs">
+            <h2 className="text-xs md:text-sm font-bold text-gray-100 flex items-center gap-1.5 truncate">
+              <span className="truncate">{meetingDetails?.title || "Zoom Meeting"}</span>
               {selfInfo?.is_host && (
-                <span className="bg-blue-900/60 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-700/50">
+                <span className="bg-blue-900/60 text-blue-300 text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-700/50 shrink-0">
                   Host
                 </span>
               )}
             </h2>
-            <p className="text-[11px] font-mono text-gray-400">ID: {meetingId}</p>
+            <p className="text-[10px] md:text-[11px] font-mono text-gray-400 truncate">ID: {meetingId}</p>
           </div>
         </div>
 
         {/* Top Right Copy Invite & Room Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <button
             onClick={handleCopyInvite}
-            className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition-colors"
+            className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700 transition-colors cursor-pointer"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? "Link Copied!" : "Copy Invite"}</span>
+            <span className="text-[11px] font-medium">{copiedLink ? "Copied!" : "Copy Invite"}</span>
           </button>
-          <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-950/40 px-2.5 py-1 rounded-full border border-green-800/40">
+          <div className="flex items-center gap-1 text-xs text-green-400 bg-green-950/40 px-2 py-1 rounded-full border border-green-800/40 shrink-0">
             <Radio className="w-3 h-3 animate-pulse" />
-            <span className="font-semibold text-[11px]">LIVE</span>
+            <span className="font-semibold text-[10px] md:text-[11px]">LIVE</span>
           </div>
         </div>
       </header>
@@ -760,10 +760,18 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
 
-        {/* Video Grid (Dynamic 2x2 capped at 4 participants) */}
-        <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center bg-[#14141e] overflow-hidden">
+        {/* Video Grid (Responsive Desktop 2x2 Grid / Mobile Touch Swipe Carousel) */}
+        <div className={`flex-1 bg-[#14141e] overflow-hidden p-2 md:p-4 ${
+          participants.length > 2
+            ? "flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-3 items-center md:grid md:grid-cols-2 md:gap-4"
+            : "flex flex-col md:grid md:grid-cols-2 gap-2 md:gap-4 items-center justify-center"
+        }`}>
           {/* 1. Self Video Tile */}
-          <div className="relative w-full h-full min-h-[220px] max-h-[420px] bg-[#222230] rounded-2xl overflow-hidden border border-gray-800 shadow-xl flex items-center justify-center group">
+          <div className={`relative w-full bg-[#222230] rounded-2xl overflow-hidden border border-gray-800 shadow-xl flex items-center justify-center group ${
+            participants.length > 2
+              ? "w-[85vw] max-w-[340px] shrink-0 snap-center h-[calc(100vh-140px)] max-h-[500px] md:w-full md:max-w-none md:h-full md:min-h-[220px] md:max-h-[420px]"
+              : "flex-1 h-full min-h-0 w-full max-h-[420px] md:min-h-[220px]"
+          }`}>
             <video
               ref={localVideoRef}
               autoPlay
@@ -773,17 +781,17 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
             />
             {!isVideoOn && (
               <div className="flex flex-col items-center justify-center">
-                <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl md:text-2xl font-bold shadow-lg">
                   {selfInfo?.display_name?.slice(0, 2).toUpperCase() || "ME"}
                 </div>
-                <span className="mt-3 text-sm font-semibold text-gray-300">
+                <span className="mt-3 text-xs md:text-sm font-semibold text-gray-300">
                   {selfInfo?.display_name || nameQuery} (You)
                 </span>
               </div>
             )}
 
             {/* Tile Footer Badge */}
-            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-2 border border-white/10">
+            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-lg text-[11px] md:text-xs font-semibold flex items-center gap-2 border border-white/10">
               <span>{selfInfo?.display_name || nameQuery} (You)</span>
               {isMicOn ? (
                 <div className="flex items-center gap-0.5">
@@ -805,7 +813,11 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
               return (
                 <div
                   key={p.client_token}
-                  className="relative w-full h-full min-h-[220px] max-h-[420px] bg-[#222230] rounded-2xl overflow-hidden border border-gray-800 shadow-xl flex items-center justify-center"
+                  className={`relative w-full bg-[#222230] rounded-2xl overflow-hidden border border-gray-800 shadow-xl flex items-center justify-center ${
+                    participants.length > 2
+                      ? "w-[85vw] max-w-[340px] shrink-0 snap-center h-[calc(100vh-140px)] max-h-[500px] md:w-full md:max-w-none md:h-full md:min-h-[220px] md:max-h-[420px]"
+                      : "flex-1 h-full min-h-0 w-full max-h-[420px] md:min-h-[220px]"
+                  }`}
                 >
                   {remoteStream && !p.is_video_off ? (
                     <video
@@ -821,17 +833,17 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xl md:text-2xl font-bold shadow-lg">
                         {p.display_name?.slice(0, 2).toUpperCase() || "P"}
                       </div>
-                      <span className="mt-3 text-sm font-semibold text-gray-300">
+                      <span className="mt-3 text-xs md:text-sm font-semibold text-gray-300">
                         {p.display_name}
                       </span>
                     </div>
                   )}
 
                   {/* Tile Footer Badge */}
-                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-2 border border-white/10">
+                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-lg text-[11px] md:text-xs font-semibold flex items-center gap-2 border border-white/10">
                     <span>{p.display_name}</span>
                     {p.is_host && (
                       <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded-sm font-bold">
@@ -1012,13 +1024,13 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Bottom Zoom Toolbar */}
-      <footer className="h-16 zoom-dark-toolbar border-t border-gray-800 px-6 flex items-center justify-between shrink-0">
-        {/* Left Toolbar Controls (Mic / Video) */}
-        <div className="flex items-center gap-3">
+      <footer className="h-16 zoom-dark-toolbar border-t border-gray-800 px-3 md:px-6 flex items-center justify-between shrink-0 gap-2 overflow-x-auto scrollbar-none">
+        {/* Scrollable Action Buttons */}
+        <div className="flex items-center gap-1.5 md:gap-3 overflow-x-auto scrollbar-none py-1 flex-1">
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleMic(); }}
-            className={`flex flex-col items-center justify-center w-14 h-11 rounded-xl transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center min-w-[50px] md:w-14 h-11 rounded-xl transition-all shrink-0 cursor-pointer ${
               isMicOn
                 ? "text-gray-300 hover:bg-gray-800 hover:text-white"
                 : "bg-red-600/20 text-red-500 hover:bg-red-600/30"
@@ -1031,7 +1043,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleVideo(); }}
-            className={`flex flex-col items-center justify-center w-14 h-11 rounded-xl transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center min-w-[50px] md:w-14 h-11 rounded-xl transition-all shrink-0 cursor-pointer ${
               isVideoOn
                 ? "text-gray-300 hover:bg-gray-800 hover:text-white"
                 : "bg-red-600/20 text-red-500 hover:bg-red-600/30"
@@ -1040,15 +1052,12 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
             {isVideoOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             <span className="text-[10px] mt-0.5">{isVideoOn ? "Stop Video" : "Start Video"}</span>
           </button>
-        </div>
 
-        {/* Center Toolbar Controls (Security, Participants, Chat, Reactions) */}
-        <div className="flex items-center gap-2 md:gap-4">
           {selfInfo?.is_host && (
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActivePanel(activePanel === "security" ? null : "security"); }}
-              className={`flex flex-col items-center justify-center w-16 h-11 rounded-xl transition-all cursor-pointer ${
+              className={`flex flex-col items-center justify-center min-w-[54px] md:w-16 h-11 rounded-xl transition-all shrink-0 cursor-pointer ${
                 activePanel === "security"
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -1062,7 +1071,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActivePanel(activePanel === "participants" ? null : "participants"); }}
-            className={`flex flex-col items-center justify-center w-16 h-11 rounded-xl relative transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center min-w-[56px] md:w-16 h-11 rounded-xl relative transition-all shrink-0 cursor-pointer ${
               activePanel === "participants"
                 ? "bg-blue-600 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -1080,7 +1089,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActivePanel(activePanel === "chat" ? null : "chat"); }}
-            className={`flex flex-col items-center justify-center w-16 h-11 rounded-xl transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center min-w-[52px] md:w-16 h-11 rounded-xl transition-all shrink-0 cursor-pointer ${
               activePanel === "chat"
                 ? "bg-blue-600 text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -1090,27 +1099,26 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
             <span className="text-[10px] mt-0.5">Chat</span>
           </button>
 
-          {/* Share Screen Control (Zoom Green) */}
           <button
             type="button"
             onClick={toggleScreenShare}
-            className={`flex flex-col items-center justify-center w-16 h-11 rounded-xl transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center min-w-[56px] md:w-16 h-11 rounded-xl transition-all shrink-0 cursor-pointer ${
               isScreenSharing
                 ? "bg-green-600 text-white font-bold shadow-md"
                 : "text-green-400 hover:bg-gray-800 hover:text-green-300"
             }`}
           >
             <Share2 className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
+            <span className="text-[10px] mt-0.5">{isScreenSharing ? "Stop Share" : "Share"}</span>
           </button>
 
           {/* Quick Emoji Reactions */}
-          <div className="hidden sm:flex items-center gap-1 bg-gray-800/80 p-1 rounded-xl border border-gray-700">
+          <div className="hidden sm:flex items-center gap-1 bg-gray-800/80 p-1 rounded-xl border border-gray-700 shrink-0">
             {["👍", "👏", "✋", "❤️"].map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => sendReaction(emoji)}
-                className="hover:bg-gray-700 p-1 rounded-lg text-sm transition-transform hover:scale-125"
+                className="hover:bg-gray-700 p-1 rounded-lg text-sm transition-transform hover:scale-125 cursor-pointer"
               >
                 {emoji}
               </button>
@@ -1118,14 +1126,14 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Right Toolbar Action (End / Leave Meeting Red Button) */}
-        <div>
+        {/* Pinned Right Red End / Leave Button (ALWAYS 100% VISIBLE ON MOBILE) */}
+        <div className="shrink-0 pl-1 border-l border-gray-800/80">
           <button
             onClick={handleLeaveOrEndMeeting}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+            className="bg-red-600 hover:bg-red-700 text-white px-3 md:px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
-            <PhoneOff className="w-4 h-4" />
-            <span>{selfInfo?.is_host ? "End Meeting" : "Leave"}</span>
+            <PhoneOff className="w-4 h-4 shrink-0" />
+            <span>{selfInfo?.is_host ? "End" : "Leave"}</span>
           </button>
         </div>
       </footer>
