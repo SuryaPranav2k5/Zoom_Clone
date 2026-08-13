@@ -79,6 +79,7 @@ interface MeetingInsightsModalProps {
   isOpen: boolean;
   onClose: () => void;
   recentMeetings: MeetingItem[];
+  upcomingMeetings?: MeetingItem[];
   initialMeetingId?: string;
 }
 
@@ -86,6 +87,7 @@ export default function MeetingInsightsModal({
   isOpen,
   onClose,
   recentMeetings,
+  upcomingMeetings = [],
   initialMeetingId
 }: MeetingInsightsModalProps) {
   const { user } = useAuth();
@@ -101,9 +103,14 @@ export default function MeetingInsightsModal({
   const [dueDateInput, setDueDateInput] = useState("");
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
+  // Combine meetings uniquely
+  const allMeetings = [...recentMeetings, ...upcomingMeetings].filter(
+    (m, idx, self) => idx === self.findIndex((t) => t.id === m.id)
+  );
+
   useEffect(() => {
     if (isOpen) {
-      const defaultId = initialMeetingId || (recentMeetings.length > 0 ? recentMeetings[0].id : "");
+      const defaultId = initialMeetingId || (allMeetings.length > 0 ? allMeetings[0].id : "");
       setSelectedMeetingId(defaultId);
       if (defaultId) {
         fetchInsights(defaultId);
@@ -113,7 +120,7 @@ export default function MeetingInsightsModal({
       setErrorMsg("");
       setShowAddForm(false);
     }
-  }, [isOpen, initialMeetingId, recentMeetings]);
+  }, [isOpen, initialMeetingId, recentMeetings, upcomingMeetings]);
 
   const fetchInsights = async (meetingId: string) => {
     if (!meetingId) return;
@@ -255,10 +262,10 @@ export default function MeetingInsightsModal({
 
         {/* Body Container */}
         <div className="p-6 flex-1 overflow-y-auto space-y-6 bg-gray-50/50">
-          {/* Recent Meetings Selector Dropdown */}
+          {/* Meeting Selector Dropdown */}
           <div className="bg-white rounded-2xl p-4 border border-gray-200 zoom-card-shadow flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-600" /> Select a Meeting from Recent Meetings:
+              <Calendar className="w-4 h-4 text-blue-600" /> Select a Meeting:
             </label>
             <div className="relative min-w-[260px]">
               <select
@@ -266,10 +273,10 @@ export default function MeetingInsightsModal({
                 onChange={(e) => handleSelectMeeting(e.target.value)}
                 className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
-                {recentMeetings.length === 0 ? (
-                  <option value="">No recent meetings found</option>
+                {allMeetings.length === 0 ? (
+                  <option value="">No meetings found</option>
                 ) : (
-                  recentMeetings.map((m) => (
+                  allMeetings.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.title} ({m.id})
                     </option>

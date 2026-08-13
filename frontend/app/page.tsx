@@ -690,6 +690,7 @@ export default function DashboardPage() {
         isOpen={isInsightsOpen}
         onClose={() => setIsInsightsOpen(false)}
         recentMeetings={recentMeetings}
+        upcomingMeetings={upcomingMeetings}
       />
 
       {/* Custom Toast Popup Notification */}
