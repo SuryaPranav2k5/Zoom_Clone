@@ -34,6 +34,7 @@ interface MeetingItem {
   created_at: string;
   ended_at?: string;
   host_name: string;
+  invitees?: string;
   invite_link?: string;
 }
 
@@ -389,13 +390,19 @@ export default function ZoomDashboard() {
                       </span>
                     </div>
 
+                    {m.invitees && (
+                      <div className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/60 font-medium truncate">
+                        👥 Invited: {m.invitees}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <span className="text-xs text-gray-500">Host: <strong className="text-gray-700">{m.host_name}</strong></span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleCopyLink(m.id)}
                           title="Copy Link"
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
                         >
                           {copiedId === m.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                         </button>
@@ -404,7 +411,7 @@ export default function ZoomDashboard() {
                             setSelectedMeetingId(m.id);
                             setIsJoinOpen(true);
                           }}
-                          className="zoom-blue-btn text-white px-3 py-1 rounded-lg text-xs font-semibold shadow-xs"
+                          className="zoom-blue-btn text-white px-3 py-1 rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
                         >
                           Start / Join
                         </button>

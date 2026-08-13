@@ -19,6 +19,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
     return d.toISOString().slice(0, 16);
   });
   const [durationMinutes, setDurationMinutes] = useState(40);
+  const [invitees, setInvitees] = useState("");
   const [enablePasscode, setEnablePasscode] = useState(false);
   const [passcode, setPasscode] = useState("123456");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +41,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
         scheduled_start_time: new Date(startDate).toISOString(),
         duration_minutes: Number(durationMinutes),
         passcode: enablePasscode && passcode.trim() ? passcode.trim() : null,
+        invitees: invitees.trim() || null,
       };
 
       const res = await fetch("http://127.0.0.1:8000/api/meetings/schedule", {
@@ -62,11 +64,12 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyFullInvitation = () => {
     if (createdMeetingInfo) {
       const fullUrl = `${window.location.origin}/meeting/${createdMeetingInfo.id}`;
-      navigator.clipboard.writeText(fullUrl);
-      alert("Meeting link copied to clipboard!");
+      const inviteText = `${hostName} is inviting you to a scheduled Zoom meeting.\n\nTopic: ${createdMeetingInfo.title}\nTime: ${new Date(startDate).toLocaleString()}\n\nJoin Zoom Meeting:\n${fullUrl}\n\nMeeting ID: ${createdMeetingInfo.id}${createdMeetingInfo.passcode_required ? `\nPasscode: ${passcode}` : ""}${createdMeetingInfo.invitees ? `\nInvitees: ${createdMeetingInfo.invitees}` : ""}`;
+      navigator.clipboard.writeText(inviteText);
+      alert("Full Zoom Invitation copied to clipboard!");
     }
   };
 
@@ -81,7 +84,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
+            className="p-1 rounded-full hover:bg-gray-200 text-gray-500 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -109,24 +112,30 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
                   <span className="font-mono font-semibold text-blue-600">{passcode}</span>
                 </div>
               )}
+              {createdMeetingInfo.invitees && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Invited Attendees:</span>
+                  <span className="text-gray-900 truncate max-w-[200px]">{createdMeetingInfo.invitees}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 font-medium">Duration:</span>
                 <span className="text-gray-900">{createdMeetingInfo.duration_minutes} mins</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="button"
-                onClick={handleCopyLink}
-                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-xl text-sm transition-colors"
+                onClick={handleCopyFullInvitation}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-xl text-sm transition-colors cursor-pointer"
               >
-                Copy Invite Link
+                Copy Full Zoom Invitation
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="zoom-blue-btn w-full py-2.5 text-white font-medium rounded-xl text-sm shadow-md"
+                className="zoom-blue-btn w-full py-2.5 text-white font-semibold rounded-xl text-sm shadow-md cursor-pointer"
               >
                 Done
               </button>
@@ -243,6 +252,19 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
                 />
               </div>
             )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Invite Attendees (Optional)
+              </label>
+              <input
+                type="text"
+                value={invitees}
+                onChange={(e) => setInvitees(e.target.value)}
+                placeholder="e.g. friend@gmail.com, alex@example.com"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-hidden text-sm"
+              />
+            </div>
 
             {/* Submit Actions */}
             <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">

@@ -59,7 +59,8 @@ def create_scheduled_meeting(db: Session, data: ScheduledMeetingCreate) -> Meeti
         scheduled_start_time=data.scheduled_start_time,
         duration_minutes=data.duration_minutes,
         created_at=now,
-        host_name=data.host_name
+        host_name=data.host_name,
+        invitees=data.invitees
     )
     db.add(meeting)
     db.commit()
