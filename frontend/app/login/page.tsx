@@ -24,7 +24,8 @@ export default function LoginPage() {
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        if ((window as any).google) {
+        if ((window as any).google && !(window as any)._googleGsiInitialized) {
+          (window as any)._googleGsiInitialized = true;
           (window as any).google.accounts.id.initialize({
             client_id: googleClientId,
             callback: async (response: any) => {
