@@ -25,6 +25,7 @@ import {
   Share2
 } from "lucide-react";
 import { WS_BASE_URL } from "@/lib/config";
+import { useAuth } from "@/context/AuthContext";
 
 interface ParticipantInfo {
   client_token: string;
@@ -54,11 +55,20 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
   const { id: meetingId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  const nameQuery = searchParams.get("name") || "Guest User";
+  const rawNameQuery = searchParams.get("name");
+  const hasExplicitName = !!rawNameQuery;
+
+  const [isJoined, setIsJoined] = useState<boolean>(hasExplicitName);
+  const [lobbyName, setLobbyName] = useState<string>(rawNameQuery || user?.full_name || "");
+
   const initialMic = searchParams.get("mic") !== "0";
   const initialVideo = searchParams.get("video") !== "0";
   const isHostQuery = searchParams.get("host") === "true";
+
+  const activeDisplayName = lobbyName || rawNameQuery || "Guest User";
+  const nameQuery = activeDisplayName;
 
   // State
   const [clientToken, setClientToken] = useState<string>("");
@@ -177,7 +187,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
         });
       } catch (err) {
         // Camera/mic blocked or unavailable - use synthetic canvas avatar fallback stream cleanly
-        const fallbackStream = createFallbackStream(nameQuery);
+        const fallbackStream = createFallbackStream(activeDisplayName);
         localStreamRef.current = fallbackStream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = fallbackStream;
@@ -185,7 +195,9 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
       }
     }
 
-    initMedia();
+    if (isJoined) {
+      initMedia();
+    }
 
     return () => {
       if (localStreamRef.current) {
@@ -195,14 +207,14 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
         wsRef.current.close();
       }
     };
-  }, [meetingId]);
+  }, [meetingId, isJoined, activeDisplayName]);
 
   // 2. WebSocket Connection
   useEffect(() => {
-    if (!clientToken) return;
+    if (!clientToken || !isJoined) return;
 
     const wsUrl = `${WS_BASE_URL}/ws/meeting/${meetingId}?client_token=${clientToken}&display_name=${encodeURIComponent(
-      nameQuery
+      activeDisplayName
     )}&is_host=${isHostQuery}`;
 
     const ws = new WebSocket(wsUrl);
@@ -1218,6 +1230,94 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
             <Info className="w-4 h-4 text-blue-400 shrink-0" />
           )}
           <span className="text-xs font-semibold">{toastMsg.text}</span>
+        </div>
+      )}
+
+      {/* Pre-Join Lobby Modal for Direct Links */}
+      {!isJoined && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-gray-100 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Join Meeting</h2>
+                <p className="text-xs text-gray-500 font-mono mt-0.5">ID: {meetingId}</p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <VideoIcon className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">
+                  Your Display Name
+                </label>
+                <input
+                  type="text"
+                  value={lobbyName}
+                  onChange={(e) => setLobbyName(e.target.value)}
+                  placeholder="Enter your display name"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">
+                  Join Options
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsMicOn(!isMicOn)}
+                    className={`py-3 px-4 rounded-2xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                      isMicOn
+                        ? "bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100"
+                        : "bg-red-50 border-red-200 text-red-600"
+                    }`}
+                  >
+                    {isMicOn ? <Mic className="w-4 h-4 text-blue-600" /> : <MicOff className="w-4 h-4 text-red-500" />}
+                    {isMicOn ? "Mic On" : "Mic Muted"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoOn(!isVideoOn)}
+                    className={`py-3 px-4 rounded-2xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                      isVideoOn
+                        ? "bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100"
+                        : "bg-red-50 border-red-200 text-red-600"
+                    }`}
+                  >
+                    {isVideoOn ? <VideoIcon className="w-4 h-4 text-blue-600" /> : <VideoOff className="w-4 h-4 text-red-500" />}
+                    {isVideoOn ? "Camera On" : "Camera Off"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!lobbyName.trim()) {
+                    showToast("Please enter a display name.", "error");
+                    return;
+                  }
+                  setIsJoined(true);
+                }}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+              >
+                Join
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
