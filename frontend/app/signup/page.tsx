@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Video, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Video, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function SignupPage() {
@@ -231,6 +231,8 @@ export default function SignupPage() {
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
+                  autoComplete="new-password"
+                  data-lpignore="true"
                   placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -255,6 +257,16 @@ export default function SignupPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Educational Disclaimer Badge to satisfy Google Safe Browsing */}
+          <div className="mt-4 pt-4 border-t border-gray-100 text-center space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold rounded-xl">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Educational Assignment Demo
+            </span>
+            <p className="text-[10px] text-gray-400 leading-normal max-w-xs mx-auto">
+              This is an academic fullstack project built strictly for assignment evaluation. Not affiliated with Zoom Video Communications, Inc.
+            </p>
+          </div>
         </div>
       </main>
 
