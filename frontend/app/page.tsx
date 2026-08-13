@@ -333,11 +333,11 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
         {/* Left Hero & Action Grid (7 Columns) */}
-        <div className="lg:col-span-7 space-y-8">
+        <div className="lg:col-span-7 space-y-6 sm:space-y-8">
           {/* Live Date/Time Clock Card */}
-          <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
             <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
               <div>
