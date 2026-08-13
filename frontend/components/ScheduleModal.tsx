@@ -16,8 +16,16 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
   const [description, setDescription] = useState("");
   const [hostName, setHostName] = useState(user?.full_name || "Host User");
 
+  const handleCloseModal = () => {
+    setCreatedMeetingInfo(null);
+    setErrorMsg("");
+    onClose();
+  };
+
   useEffect(() => {
     if (isOpen) {
+      setCreatedMeetingInfo(null);
+      setErrorMsg("");
       if (user?.full_name) {
         setHostName(user.full_name);
       } else {
@@ -94,7 +102,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
             <h3 className="text-lg font-semibold text-gray-800">Schedule Meeting</h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCloseModal}
             className="p-1 rounded-full hover:bg-gray-200 text-gray-500 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -145,7 +153,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
               </button>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="zoom-blue-btn w-full py-2.5 text-white font-semibold rounded-xl text-sm shadow-md cursor-pointer"
               >
                 Done
