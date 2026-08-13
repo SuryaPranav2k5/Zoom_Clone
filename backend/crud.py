@@ -102,6 +102,7 @@ def update_meeting_status(db: Session, meeting_id: str, new_status: str) -> Opti
 def delete_meeting(db: Session, meeting_id: str) -> Optional[Meeting]:
     meeting = get_meeting(db, meeting_id)
     if meeting:
+        db.query(Participant).filter(Participant.meeting_id == meeting.id).delete(synchronize_session=False)
         db.delete(meeting)
         db.commit()
         return meeting
