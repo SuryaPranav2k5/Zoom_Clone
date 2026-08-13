@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   X,
   Brain,
@@ -103,14 +103,18 @@ export default function MeetingInsightsModal({
   const [dueDateInput, setDueDateInput] = useState("");
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  // Combine meetings uniquely
-  const allMeetings = [...recentMeetings, ...upcomingMeetings].filter(
-    (m, idx, self) => idx === self.findIndex((t) => t.id === m.id)
-  );
+  // Combine meetings uniquely with memoization
+  const allMeetings = useMemo(() => {
+    return [...recentMeetings, ...upcomingMeetings].filter(
+      (m, idx, self) => idx === self.findIndex((t) => t.id === m.id)
+    );
+  }, [recentMeetings, upcomingMeetings]);
+
+  const meetingsCount = allMeetings.length;
 
   useEffect(() => {
     if (isOpen) {
-      const defaultId = initialMeetingId || (allMeetings.length > 0 ? allMeetings[0].id : "");
+      const defaultId = initialMeetingId || (meetingsCount > 0 ? allMeetings[0].id : "");
       setSelectedMeetingId(defaultId);
       if (defaultId) {
         fetchInsights(defaultId);
@@ -120,7 +124,7 @@ export default function MeetingInsightsModal({
       setErrorMsg("");
       setShowAddForm(false);
     }
-  }, [isOpen, initialMeetingId, recentMeetings, upcomingMeetings]);
+  }, [isOpen, initialMeetingId, meetingsCount]);
 
   const fetchInsights = async (meetingId: string) => {
     if (!meetingId) return;
