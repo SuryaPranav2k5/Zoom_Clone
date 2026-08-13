@@ -15,7 +15,8 @@ import {
   User,
   ShieldCheck,
   Check,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import JoinModal from "../components/JoinModal";
@@ -85,31 +86,50 @@ export default function ZoomDashboard() {
     fetchMeetings();
   }, []);
 
+  const ensureUtcIso = (isoStr?: string) => {
+    if (!isoStr) return "";
+    if (isoStr.endsWith("Z") || isoStr.includes("+")) return isoStr;
+    return isoStr + "Z";
+  };
+
   // Filter meetings for authenticated users vs guest mode (evaluators)
   const displayedUpcomingMeetings = useMemo(() => {
-    if (!user) return upcomingMeetings;
-    const userEmail = user.email.toLowerCase().trim();
-    const userName = user.full_name.toLowerCase().trim();
-    return upcomingMeetings.filter((m) => {
-      const isHost = m.host_email
-        ? m.host_email.toLowerCase().trim() === userEmail
-        : m.host_name.toLowerCase().trim() === userName;
-      const isInvited = m.invitees
-        ? m.invitees.toLowerCase().includes(userEmail) || m.invitees.toLowerCase().includes(userName)
-        : false;
-      return isHost || isInvited;
+    let list = upcomingMeetings;
+    if (user) {
+      const userEmail = user.email.toLowerCase().trim();
+      const userName = user.full_name.toLowerCase().trim();
+      list = upcomingMeetings.filter((m) => {
+        const isHost = m.host_email
+          ? m.host_email.toLowerCase().trim() === userEmail
+          : m.host_name.toLowerCase().trim() === userName;
+        const isInvited = m.invitees
+          ? m.invitees.toLowerCase().includes(userEmail) || m.invitees.toLowerCase().includes(userName)
+          : false;
+        return isHost || isInvited;
+      });
+    }
+    // Sort upcoming meetings chronologically by scheduled start time (earliest timing first)
+    return [...list].sort((a, b) => {
+      const timeA = a.scheduled_start_time ? new Date(ensureUtcIso(a.scheduled_start_time)).getTime() : 0;
+      const timeB = b.scheduled_start_time ? new Date(ensureUtcIso(b.scheduled_start_time)).getTime() : 0;
+      return timeA - timeB;
     });
   }, [upcomingMeetings, user]);
 
   const displayedRecentMeetings = useMemo(() => {
-    if (!user) return recentMeetings;
-    const userEmail = user.email.toLowerCase().trim();
-    const userName = user.full_name.toLowerCase().trim();
-    return recentMeetings.filter((m) => {
-      return m.host_email
-        ? m.host_email.toLowerCase().trim() === userEmail
-        : m.host_name.toLowerCase().trim() === userName;
-    });
+    let list = recentMeetings;
+    if (user) {
+      const userEmail = user.email.toLowerCase().trim();
+      const userName = user.full_name.toLowerCase().trim();
+      list = recentMeetings.filter((m) => {
+        return m.host_email
+          ? m.host_email.toLowerCase().trim() === userEmail
+          : m.host_name.toLowerCase().trim() === userName;
+      });
+    }
+    return [...list].sort(
+      (a, b) => new Date(ensureUtcIso(b.ended_at || b.created_at)).getTime() - new Date(ensureUtcIso(a.ended_at || a.created_at)).getTime()
+    );
   }, [recentMeetings, user]);
 
   const handleInstantMeeting = async () => {
@@ -157,15 +177,38 @@ export default function ZoomDashboard() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const isPastScheduledTime = (isoStr?: string) => {
+    if (!isoStr) return false;
+    const meetingTime = new Date(ensureUtcIso(isoStr)).getTime();
+    return Date.now() > meetingTime;
+  };
+
+  const handleDeleteMeeting = async (meetingId: string) => {
+    if (!confirm("Are you sure you want to delete this meeting?")) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/meetings/${meetingId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchMeetings();
+      } else {
+        alert("Failed to delete meeting.");
+      }
+    } catch (err) {
+      console.error("Error deleting meeting:", err);
+      alert("Error deleting meeting.");
+    }
+  };
+
   const formatTimeStr = (isoStr?: string) => {
     if (!isoStr) return "N/A";
-    const d = new Date(isoStr);
+    const d = new Date(ensureUtcIso(isoStr));
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatDateStr = (isoStr?: string) => {
     if (!isoStr) return "";
-    const d = new Date(isoStr);
+    const d = new Date(ensureUtcIso(isoStr));
     return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
   };
 
@@ -431,6 +474,16 @@ export default function ZoomDashboard() {
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <span className="text-xs text-gray-500">Host: <strong className="text-gray-700">{m.host_name}</strong></span>
                       <div className="flex items-center gap-2">
+                        {isPastScheduledTime(m.scheduled_start_time) && (
+                          <button
+                            onClick={() => handleDeleteMeeting(m.id)}
+                            title="Scheduled time has passed — Delete Meeting"
+                            className="flex items-center gap-1 px-2 py-1 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 text-xs font-medium transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleCopyLink(m.id)}
                           title="Copy Link"
@@ -475,9 +528,19 @@ export default function ZoomDashboard() {
                     </div>
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
                       <span>Host: <strong className="text-gray-700">{m.host_name}</strong></span>
-                      <span className="bg-red-50 text-red-600 font-semibold px-2 py-0.5 rounded-full border border-red-100">
-                        Ended
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleDeleteMeeting(m.id)}
+                          title="Delete Meeting"
+                          className="flex items-center gap-1 px-2 py-1 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                        <span className="bg-red-50 text-red-600 font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                          Ended
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))

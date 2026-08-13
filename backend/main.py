@@ -239,6 +239,13 @@ def get_meeting_details(meeting_id: str, db: Session = Depends(get_db)):
     res.invite_link = f"/meeting/{meeting.id}"
     return res
 
+@app.delete("/api/meetings/{meeting_id}")
+def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
+    meeting = crud.delete_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    return {"success": True, "message": "Meeting deleted successfully."}
+
 # --------------------------
 # WebSocket Endpoint for Rooms
 # --------------------------

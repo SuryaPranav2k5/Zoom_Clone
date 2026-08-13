@@ -75,7 +75,7 @@ def get_meeting(db: Session, meeting_id: str) -> Optional[Meeting]:
     return db.query(Meeting).filter(Meeting.id == formatted_id).first()
 
 def get_upcoming_meetings(db: Session, limit: int = 10) -> List[Meeting]:
-    """Fetch meetings with status UPCOMING ordered by scheduled start time ascending"""
+    """Fetch meetings with status UPCOMING ordered by scheduled_start_time ascending (earliest scheduled meeting first)"""
     return db.query(Meeting).filter(
         Meeting.status == "UPCOMING"
     ).order_by(Meeting.scheduled_start_time.asc()).limit(limit).all()
@@ -98,6 +98,14 @@ def update_meeting_status(db: Session, meeting_id: str, new_status: str) -> Opti
         db.commit()
         db.refresh(meeting)
     return meeting
+
+def delete_meeting(db: Session, meeting_id: str) -> Optional[Meeting]:
+    meeting = get_meeting(db, meeting_id)
+    if meeting:
+        db.delete(meeting)
+        db.commit()
+        return meeting
+    return None
 
 def get_or_create_participant(
     db: Session,
