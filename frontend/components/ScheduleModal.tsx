@@ -85,11 +85,14 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
     }
   };
 
+  const [isCopied, setIsCopied] = useState(false);
+
   const handleCopyInviteLink = () => {
     if (createdMeetingInfo) {
       const fullUrl = `${window.location.origin}/meeting/${createdMeetingInfo.id}`;
       navigator.clipboard.writeText(fullUrl);
-      alert("Invitation link copied to clipboard!");
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
     }
   };
 
@@ -150,7 +153,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
                 onClick={handleCopyInviteLink}
                 className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-xl text-sm transition-colors cursor-pointer"
               >
-                Copy Invitation Link
+                {isCopied ? "✓ Link Copied!" : "Copy Invitation Link"}
               </button>
               <button
                 type="button"

@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   Check,
   RefreshCw,
-  Trash2
+  Trash2,
+  ShieldAlert,
+  Info
 } from "lucide-react";
 import Link from "next/link";
 import JoinModal from "../components/JoinModal";
@@ -55,6 +57,13 @@ export default function ZoomDashboard() {
   const [avatarImgError, setAvatarImgError] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type?: "info" | "success" | "error" } | null>(null);
+
+  const showToast = (text: string, type: "info" | "success" | "error" = "info") => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 3500);
+  };
 
   // Live time clock
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -174,6 +183,7 @@ export default function ZoomDashboard() {
     const fullUrl = `${window.location.origin}/meeting/${meetingId}`;
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(meetingId);
+    showToast("Meeting link copied to clipboard!", "success");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -183,20 +193,27 @@ export default function ZoomDashboard() {
     return Date.now() > meetingTime;
   };
 
-  const handleDeleteMeeting = async (meetingId: string) => {
-    if (!confirm("Are you sure you want to delete this meeting?")) return;
+  const handleDeleteMeeting = (meetingId: string) => {
+    setDeleteTargetId(meetingId);
+  };
+
+  const confirmDeleteMeeting = async () => {
+    if (!deleteTargetId) return;
+    const meetingId = deleteTargetId;
+    setDeleteTargetId(null);
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/meetings/${meetingId}`, {
         method: "DELETE",
       });
       if (res.ok) {
+        showToast("Meeting deleted successfully.", "success");
         fetchMeetings();
       } else {
-        alert("Failed to delete meeting.");
+        showToast("Failed to delete meeting.", "error");
       }
     } catch (err) {
       console.error("Error deleting meeting:", err);
-      alert("Error deleting meeting.");
+      showToast("Error deleting meeting.", "error");
     }
   };
 
@@ -563,8 +580,57 @@ export default function ZoomDashboard() {
         onClose={() => setIsScheduleOpen(false)}
         onScheduledSuccess={() => {
           fetchMeetings();
+          showToast("Meeting scheduled successfully!", "success");
         }}
       />
+
+      {/* Delete Meeting Custom Confirmation Modal */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Delete Meeting?</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Are you sure you want to permanently delete this meeting from your schedule?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteMeeting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Toast Popup Notification */}
+      {toastMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-2xl border border-gray-700 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200">
+          {toastMsg.type === "error" ? (
+            <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+          ) : toastMsg.type === "success" ? (
+            <Check className="w-4 h-4 text-green-400 shrink-0" />
+          ) : (
+            <Info className="w-4 h-4 text-blue-400 shrink-0" />
+          )}
+          <span className="text-xs font-semibold">{toastMsg.text}</span>
+        </div>
+      )}
     </div>
   );
 }

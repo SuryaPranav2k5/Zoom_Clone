@@ -19,7 +19,9 @@ import {
   VolumeX,
   Smile,
   AlertTriangle,
-  Radio
+  Radio,
+  ShieldAlert,
+  Info
 } from "lucide-react";
 
 interface ParticipantInfo {
@@ -46,22 +48,21 @@ const ICE_SERVERS = {
   ],
 };
 
-export default function MeetingRoom({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const meetingId = resolvedParams.id;
+export default function MeetingRoomPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: meetingId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isHostQuery = searchParams.get("host") === "true";
-  const nameQuery = searchParams.get("name") || (isHostQuery ? "Host User" : "Guest User");
+  const nameQuery = searchParams.get("name") || "Guest User";
   const initialMic = searchParams.get("mic") !== "0";
   const initialVideo = searchParams.get("video") !== "0";
+  const isHostQuery = searchParams.get("host") === "true";
 
   // State
   const [clientToken, setClientToken] = useState<string>("");
+  const [meetingDetails, setMeetingDetails] = useState<any>(null);
   const [selfInfo, setSelfInfo] = useState<ParticipantInfo | null>(null);
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
-  const [meetingDetails, setMeetingDetails] = useState<any>(null);
 
   const [isMicOn, setIsMicOn] = useState(initialMic);
   const [isVideoOn, setIsVideoOn] = useState(initialVideo);
@@ -71,10 +72,18 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
 
-  // Notification banners
+  // Notification banners & Custom Modals
   const [hostDisconnectBanner, setHostDisconnectBanner] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [reactions, setReactions] = useState<{ id: string; emoji: string; name: string }[]>([]);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [kickTargetToken, setKickTargetToken] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type?: "info" | "success" | "error" } | null>(null);
+
+  const showToast = (text: string, type: "info" | "success" | "error" = "info") => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 3500);
+  };
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -211,8 +220,8 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
           break;
 
         case "JOIN_REJECTED":
-          alert(`Unable to join meeting: ${data.reason}`);
-          router.push("/");
+          showToast(`Unable to join meeting: ${data.reason}`, "error");
+          setTimeout(() => router.push("/"), 2500);
           break;
 
         case "PARTICIPANT_JOINED":
@@ -575,32 +584,42 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
   };
 
   const handleHostKickParticipant = (targetToken: string) => {
-    if (confirm("Are you sure you want to remove this participant from the meeting?")) {
+    setKickTargetToken(targetToken);
+  };
+
+  const confirmKickParticipant = () => {
+    if (kickTargetToken) {
       wsRef.current?.send(
         JSON.stringify({
           type: "HOST_KICK_PARTICIPANT",
-          target_token: targetToken,
+          target_token: kickTargetToken,
         })
       );
+      setKickTargetToken(null);
+      showToast("Participant removed from meeting.", "info");
     }
   };
 
   const handleLeaveOrEndMeeting = () => {
-    if (selfInfo?.is_host) {
-      if (confirm("End meeting for all participants? Click Cancel to just leave.")) {
-        wsRef.current?.send(JSON.stringify({ type: "END_MEETING" }));
-      } else {
-        router.push("/");
-      }
-    } else {
-      router.push("/");
-    }
+    setShowLeaveModal(true);
+  };
+
+  const confirmEndMeetingForAll = () => {
+    wsRef.current?.send(JSON.stringify({ type: "END_MEETING" }));
+    setShowLeaveModal(false);
+    router.push("/");
+  };
+
+  const confirmLeaveMeetingOnly = () => {
+    setShowLeaveModal(false);
+    router.push("/");
   };
 
   const handleCopyInvite = () => {
     const link = `${window.location.origin}/meeting/${meetingId}`;
     navigator.clipboard.writeText(link);
     setCopiedLink(true);
+    showToast("Meeting invite link copied to clipboard!", "success");
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
@@ -1020,13 +1039,116 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
         <div>
           <button
             onClick={handleLeaveOrEndMeeting}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-colors flex items-center gap-2"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-colors flex items-center gap-2 cursor-pointer"
           >
             <PhoneOff className="w-4 h-4" />
             <span>{selfInfo?.is_host ? "End Meeting" : "Leave"}</span>
           </button>
         </div>
       </footer>
+
+      {/* Leave / End Meeting Custom Confirmation Modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 text-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center shrink-0">
+                <PhoneOff className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-100">
+                  {selfInfo?.is_host ? "End or Leave Meeting?" : "Leave Meeting?"}
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {selfInfo?.is_host
+                    ? "As the host, you can end the meeting for everyone or just leave yourself."
+                    : "Are you sure you want to leave this meeting room?"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              {selfInfo?.is_host ? (
+                <>
+                  <button
+                    onClick={confirmEndMeetingForAll}
+                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    End Meeting for All
+                  </button>
+                  <button
+                    onClick={confirmLeaveMeetingOnly}
+                    className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Leave Meeting
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={confirmLeaveMeetingOnly}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Leave Meeting
+                </button>
+              )}
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className="w-full py-2.5 bg-transparent hover:bg-gray-800 text-gray-400 font-medium rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kick Participant Custom Confirmation Modal */}
+      {kickTargetToken && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 text-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-100">Remove Participant?</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Are you sure you want to remove this participant from the meeting?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setKickTargetToken(null)}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmKickParticipant}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Popup Toast Notification */}
+      {toastMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-gray-900/90 text-white px-4 py-2.5 rounded-2xl border border-gray-700 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200">
+          {toastMsg.type === "error" ? (
+            <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+          ) : toastMsg.type === "success" ? (
+            <Check className="w-4 h-4 text-green-400 shrink-0" />
+          ) : (
+            <Info className="w-4 h-4 text-blue-400 shrink-0" />
+          )}
+          <span className="text-xs font-semibold">{toastMsg.text}</span>
+        </div>
+      )}
     </div>
   );
 }
