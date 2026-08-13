@@ -251,10 +251,19 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
 
         case "MUTE_ALL_TRIGGERED":
           setParticipants(data.all_participants);
-          if (selfInfo && !selfInfo.is_host) {
-            setIsMicOn(false);
-            if (localStreamRef.current) {
-              localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = false));
+          if (data.all_participants && Array.isArray(data.all_participants)) {
+            const selfP = data.all_participants.find((p: any) => p.client_token === clientToken);
+            if (selfP && selfP.is_muted) {
+              setIsMicOn(false);
+              if (localStreamRef.current) {
+                localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = false));
+              }
+              Object.values(peerConnectionsRef.current).forEach((pc) => {
+                const sender = pc.getSenders().find((s) => s.track?.kind === "audio");
+                if (sender && sender.track) {
+                  sender.track.enabled = false;
+                }
+              });
             }
           }
           break;
