@@ -24,6 +24,7 @@ import {
   Info,
   Share2
 } from "lucide-react";
+import { WS_BASE_URL } from "@/lib/config";
 
 interface ParticipantInfo {
   client_token: string;
@@ -200,7 +201,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (!clientToken) return;
 
-    const wsUrl = `ws://127.0.0.1:8000/ws/meeting/${meetingId}?client_token=${clientToken}&display_name=${encodeURIComponent(
+    const wsUrl = `${WS_BASE_URL}/ws/meeting/${meetingId}?client_token=${clientToken}&display_name=${encodeURIComponent(
       nameQuery
     )}&is_host=${isHostQuery}`;
 

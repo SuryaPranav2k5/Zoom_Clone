@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Calendar, Clock, Lock, User, FileText, CheckCircle2 } from "lucide-react";
+import { API_BASE_URL } from "@/lib/config";
 import { useAuth } from "@/context/AuthContext";
 
 interface ScheduleModalProps {
@@ -66,7 +67,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
         invitees: invitees.trim() || null,
       };
 
-      const res = await fetch("http://127.0.0.1:8000/api/meetings/schedule", {
+      const res = await fetch(`${API_BASE_URL}/api/meetings/schedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

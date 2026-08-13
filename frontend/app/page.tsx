@@ -25,6 +25,7 @@ import Link from "next/link";
 import JoinModal from "../components/JoinModal";
 import ScheduleModal from "../components/ScheduleModal";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../lib/config";
 
 interface MeetingItem {
   id: string;
@@ -80,8 +81,8 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const [upRes, recRes] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/meetings/upcoming"),
-        fetch("http://127.0.0.1:8000/api/meetings/recent"),
+        fetch(`${API_BASE_URL}/api/meetings/upcoming`),
+        fetch(`${API_BASE_URL}/api/meetings/recent`),
       ]);
 
       if (upRes.ok) setUpcomingMeetings(await upRes.json());
@@ -226,7 +227,7 @@ export default function DashboardPage() {
     const meetingId = deleteTargetId;
     setDeleteTargetId(null);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/meetings/${meetingId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}`, {
         method: "DELETE",
       });
       if (res.ok) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Mic, MicOff, Video, VideoOff, Key, ShieldAlert } from "lucide-react";
+import { API_BASE_URL } from "@/lib/config";
 import { useAuth } from "@/context/AuthContext";
 
 interface JoinModalProps {
@@ -63,7 +64,7 @@ export default function JoinModal({ isOpen, onClose, onJoin, initialMeetingId = 
     setIsValidating(true);
     try {
       // Validate meeting against FastAPI backend
-      const res = await fetch("http://127.0.0.1:8000/api/meetings/validate", {
+      const res = await fetch(`${API_BASE_URL}/api/meetings/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +89,7 @@ export default function JoinModal({ isOpen, onClose, onJoin, initialMeetingId = 
 
       // Validate passcode if required
       if (data.passcode_required) {
-        const passRes = await fetch("http://127.0.0.1:8000/api/meetings/validate-passcode", {
+        const passRes = await fetch(`${API_BASE_URL}/api/meetings/validate-passcode`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
