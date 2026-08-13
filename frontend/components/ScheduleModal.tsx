@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Calendar, Clock, Lock, User, FileText, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -10,9 +11,20 @@ interface ScheduleModalProps {
 }
 
 export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: ScheduleModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState("Team Sync & Review");
   const [description, setDescription] = useState("");
-  const [hostName, setHostName] = useState("Alex Rivera");
+  const [hostName, setHostName] = useState(user?.full_name || "Host User");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (user?.full_name) {
+        setHostName(user.full_name);
+      } else {
+        setHostName("Host User");
+      }
+    }
+  }, [isOpen, user]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setHours(d.getHours() + 1);
