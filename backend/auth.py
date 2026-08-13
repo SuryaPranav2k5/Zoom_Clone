@@ -46,9 +46,9 @@ def verify_google_id_token(id_token: str) -> Optional[dict]:
     """
     if id_token.startswith("mock_"):
         return {
-            "email": "google.user@gmail.com",
-            "full_name": "Google User",
-            "picture": "https://lh3.googleusercontent.com/a/default-user",
+            "email": "pranavsurya321@gmail.com",
+            "full_name": "Surya Pranav",
+            "picture": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
             "sub": "mock_google_sub_123"
         }
 
@@ -69,9 +69,9 @@ def verify_google_id_token(id_token: str) -> Optional[dict]:
         print(f"[AUTH NOTE] Real Google token verification failed ({e}). Using dev fallback.")
         # Dev fallback when testing Google button without a live Google Client ID
         return {
-            "email": "google.user@gmail.com",
-            "full_name": "Google User",
-            "picture": "https://lh3.googleusercontent.com/a/default-user",
+            "email": "pranavsurya321@gmail.com",
+            "full_name": "Surya Pranav",
+            "picture": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
             "sub": "dev_fallback_google_123"
         }
     return None

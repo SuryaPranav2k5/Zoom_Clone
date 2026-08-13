@@ -68,24 +68,23 @@ export default function SignupPage() {
       return;
     }
 
-    const userEmail = prompt("Enter your Google Account Email:", "surya.pranav@gmail.com");
+    const userEmail = prompt("Enter your Google Account Email:", "pranavsurya321@gmail.com");
     if (!userEmail) return;
     const userName = prompt("Enter your Google Account Name:", "Surya Pranav");
     if (!userName) return;
+    const photoUrl = prompt(
+      "Enter your Profile Photo URL (or leave default for profile picture):",
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"
+    );
 
     setIsSubmitting(true);
     try {
-      const initials = userName ? userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "SP";
-      const svgAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="#0e71eb"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="24" font-weight="bold">${initials}</text></svg>`
-      )}`;
-
       localStorage.setItem("zoom_auth_token", "google_token_" + Date.now());
       localStorage.setItem("zoom_auth_user", JSON.stringify({
         id: Date.now(),
         full_name: userName,
         email: userEmail,
-        avatar_url: svgAvatar,
+        avatar_url: photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         provider: "GOOGLE",
         created_at: new Date().toISOString()
       }));

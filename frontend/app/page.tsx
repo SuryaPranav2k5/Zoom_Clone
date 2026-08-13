@@ -182,8 +182,9 @@ export default function ZoomDashboard() {
                   <img
                     src={user.avatar_url}
                     alt={user.full_name}
+                    referrerPolicy="no-referrer"
                     onError={() => setAvatarImgError(true)}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500 shrink-0"
                   />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100 shrink-0">
