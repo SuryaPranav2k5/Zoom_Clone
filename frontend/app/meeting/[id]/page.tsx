@@ -176,7 +176,7 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           }
         });
       } catch (err) {
-        console.warn("Could not access physical webcam. Creating fallback stream:", err);
+        // Camera/mic blocked or unavailable - use synthetic canvas avatar fallback stream cleanly
         const fallbackStream = createFallbackStream(nameQuery);
         localStreamRef.current = fallbackStream;
         if (localVideoRef.current) {

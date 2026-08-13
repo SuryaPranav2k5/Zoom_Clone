@@ -334,7 +334,7 @@ async def websocket_meeting_endpoint(
     display_name: str = Query("Participant"),
     is_host: bool = Query(False)
 ):
-    await manager.handle_connect(
+    await manager.connect(
         websocket=websocket,
         meeting_id=meeting_id,
         client_token=client_token,
