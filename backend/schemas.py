@@ -22,6 +22,8 @@ class ScheduledMeetingCreate(BaseModel):
 # Validation Requests
 class ValidateMeetingRequest(BaseModel):
     meeting_id: str
+    requester_email: Optional[str] = None
+    is_host: Optional[bool] = False
 
 class ValidatePasscodeRequest(BaseModel):
     meeting_id: str

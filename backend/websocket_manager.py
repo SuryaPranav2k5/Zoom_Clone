@@ -61,6 +61,27 @@ class ConnectionManager:
                 await websocket.close()
                 return
 
+            now = datetime.datetime.utcnow()
+            is_actual_host = is_host or (
+                (meeting.host_email and display_name.lower().strip() == meeting.host_email.lower().strip()) or
+                (meeting.host_name and display_name.lower().strip() == meeting.host_name.lower().strip())
+            )
+
+            # Restrict early attendee entry before scheduled meeting start time
+            if meeting.status == "UPCOMING" and meeting.scheduled_start_time and now < meeting.scheduled_start_time:
+                if not is_actual_host:
+                    formatted_time = meeting.scheduled_start_time.strftime("%I:%M %p UTC")
+                    await websocket.send_json({
+                        "type": "JOIN_REJECTED",
+                        "reason": f"This meeting is scheduled for {formatted_time}. Please wait for the host to start the meeting."
+                    })
+                    await websocket.close()
+                    return
+
+            # When host joins, transition meeting from UPCOMING to LIVE
+            if is_actual_host and meeting.status == "UPCOMING":
+                crud.update_meeting_status(db, meeting.id, "LIVE")
+
             db_part = db.query(Participant).filter(
                 Participant.meeting_id == meeting.id,
                 Participant.client_token == client_token

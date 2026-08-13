@@ -182,6 +182,25 @@ def validate_meeting(req: ValidateMeetingRequest, db: Session = Depends(get_db))
             message="This meeting has already ended."
         )
 
+    now = datetime.datetime.utcnow()
+    is_actual_host = req.is_host or (
+        req.requester_email and meeting.host_email and req.requester_email.lower().strip() == meeting.host_email.lower().strip()
+    )
+
+    if meeting.status == "UPCOMING" and meeting.scheduled_start_time and now < meeting.scheduled_start_time:
+        if not is_actual_host:
+            formatted_time = meeting.scheduled_start_time.strftime("%I:%M %p UTC")
+            return MeetingValidationResponse(
+                valid=False,
+                meeting_id=meeting.id,
+                title=meeting.title,
+                host_name=meeting.host_name,
+                passcode_required=bool(meeting.passcode),
+                status=meeting.status,
+                scheduled_start_time=meeting.scheduled_start_time,
+                message=f"This meeting is scheduled for {formatted_time}. Please wait for the host to start the meeting."
+            )
+
     return MeetingValidationResponse(
         valid=True,
         meeting_id=meeting.id,
