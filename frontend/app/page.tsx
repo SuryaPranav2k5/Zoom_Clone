@@ -155,9 +155,10 @@ export default function DashboardPage() {
       router.push("/login");
       return;
     }
+    showToast("Launching instant meeting...", "info");
     try {
       const hostName = user.full_name || "Host User";
-      const res = await fetch("http://127.0.0.1:8000/api/meetings/instant", {
+      const res = await fetch(`${API_BASE_URL}/api/meetings/instant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,9 +170,12 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json();
         router.push(`/meeting/${data.id}?host=true&name=${encodeURIComponent(hostName)}`);
+      } else {
+        showToast("Failed to launch instant meeting. Please try again.", "error");
       }
     } catch (err) {
-      showToast("Unable to create instant meeting. Ensure backend server is running.", "error");
+      console.error("Error creating instant meeting:", err);
+      showToast("Unable to connect to backend server. Connecting...", "error");
     }
   };
 
