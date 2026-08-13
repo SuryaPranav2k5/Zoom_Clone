@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Mic, MicOff, Video, VideoOff, Key, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface JoinModalProps {
   isOpen: boolean;
@@ -11,8 +12,20 @@ interface JoinModalProps {
 }
 
 export default function JoinModal({ isOpen, onClose, onJoin, initialMeetingId = "" }: JoinModalProps) {
+  const { user } = useAuth();
   const [meetingIdInput, setMeetingIdInput] = useState(initialMeetingId);
-  const [displayName, setDisplayName] = useState("Guest User");
+  const [displayName, setDisplayName] = useState(user?.full_name || "Guest User");
+
+  useEffect(() => {
+    if (isOpen) {
+      setMeetingIdInput(initialMeetingId || "");
+      if (user?.full_name) {
+        setDisplayName(user.full_name);
+      } else {
+        setDisplayName("Guest User");
+      }
+    }
+  }, [isOpen, initialMeetingId, user]);
   const [passcode, setPasscode] = useState("");
   const [passcodeRequired, setPasscodeRequired] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
