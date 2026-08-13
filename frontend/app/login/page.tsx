@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize real Google Identity Services SDK if Client ID is configured
+  // Load Google Identity Services SDK script
   useEffect(() => {
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (googleClientId && googleClientId !== "your_google_client_id_here") {
@@ -23,29 +23,9 @@ export default function LoginPage() {
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
-      script.onload = () => {
-        if ((window as any).google && !(window as any)._googleGsiInitialized) {
-          (window as any)._googleGsiInitialized = true;
-          (window as any).google.accounts.id.initialize({
-            client_id: googleClientId,
-            auto_select: false,
-            use_fedcm_for_prompt: false,
-            callback: async (response: any) => {
-              if (response.credential) {
-                try {
-                  await loginWithGoogle(response.credential);
-                  router.push("/");
-                } catch (err: any) {
-                  setError("Google OAuth verification failed.");
-                }
-              }
-            },
-          });
-        }
-      };
       document.body.appendChild(script);
     }
-  }, [loginWithGoogle, router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,14 +45,48 @@ export default function LoginPage() {
     setError("");
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    // If real Google Client ID is configured, trigger Google prompt
-    if (googleClientId && googleClientId !== "your_google_client_id_here" && (window as any).google) {
-      (window as any).google.accounts.id.prompt((notification: any) => {
-        if (notification.isDismissedMoment() || notification.isSkippedMoment()) {
-          // User closed or dismissed the popup without signing in - clean no-op
-        }
-      });
-      return;
+    // Trigger official Google OAuth popup flow
+    if (googleClientId && googleClientId !== "your_google_client_id_here" && (window as any).google?.accounts?.oauth2) {
+      try {
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: googleClientId,
+          scope: "openid profile email",
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.access_token) {
+              try {
+                const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const info = await res.json();
+                if (info.email) {
+                  localStorage.setItem("zoom_auth_token", "google_token_" + Date.now());
+                  localStorage.setItem(
+                    "zoom_auth_user",
+                    JSON.stringify({
+                      id: Date.now(),
+                      full_name: info.name || "Google User",
+                      email: info.email,
+                      avatar_url: info.picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+                      provider: "GOOGLE",
+                      created_at: new Date().toISOString(),
+                    })
+                  );
+                  window.location.href = "/";
+                }
+              } catch (err) {
+                setError("Google verification failed.");
+              }
+            }
+          },
+          error_callback: (err: any) => {
+            // User closed popup or cancelled cleanly
+          },
+        });
+        client.requestAccessToken();
+        return;
+      } catch (err) {
+        console.error("Google OAuth error:", err);
+      }
     }
 
     // Interactive Demo Mode: Enter Google Email, Name, and Profile Photo URL
