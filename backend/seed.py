@@ -23,10 +23,9 @@ def seed_db():
 
     db = SessionLocal()
     try:
-        # Idempotent check: only seed if no meetings exist in DB
-        if db.query(Meeting).first() is not None:
-            print("[SEED] Database already populated. Skipping seed.")
-            return
+        # Seeding disabled to ensure 100% real user data
+        print("[SEED] Seeding disabled. SQLite database uses 100% real user data.")
+        return
 
         print("[SEED] Seeding database with initial sample meetings...")
         now = datetime.datetime.utcnow()

@@ -47,8 +47,8 @@ async def lifespan(app: FastAPI):
         conn.commit()
       except Exception:
         pass
-    # Run idempotent seed on boot (checks if DB is empty before populating)
-    seed_db()
+    # Seed database disabled to ensure 100% clean real user data
+    # seed_db()
     yield
 
 app = FastAPI(
