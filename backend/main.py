@@ -19,7 +19,10 @@ from schemas import (
     UserLoginRequest,
     GoogleAuthRequest,
     UserResponse,
-    AuthTokenResponse
+    AuthTokenResponse,
+    ActionItemCreate,
+    ActionItemResponse,
+    MeetingInsightsResponse
 )
 import crud
 import auth
@@ -267,6 +270,40 @@ def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
     return {"success": True, "message": "Meeting deleted successfully."}
 
 # --------------------------
+# Meeting Insights APIs
+# --------------------------
+
+@app.get("/api/meetings/{meeting_id}/insights", response_model=MeetingInsightsResponse)
+def get_insights(meeting_id: str, db: Session = Depends(get_db)):
+    insights = crud.get_meeting_insights(db, meeting_id)
+    if not insights:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    return insights
+
+@app.post("/api/meetings/{meeting_id}/action-items", response_model=ActionItemResponse)
+def add_action_item(meeting_id: str, item: ActionItemCreate, db: Session = Depends(get_db)):
+    meeting = crud.get_meeting(db, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    
+    created = crud.create_action_item(
+        db=db,
+        meeting_id=meeting_id,
+        task=item.task,
+        assigned_to_user_id=item.assigned_to_user_id,
+        assigned_to_name=item.assigned_to_name,
+        due_date=item.due_date
+    )
+    return created
+
+@app.patch("/api/action-items/{action_item_id}/toggle", response_model=ActionItemResponse)
+def toggle_action_item(action_item_id: int, db: Session = Depends(get_db)):
+    updated = crud.toggle_action_item(db, action_item_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Action item not found.")
+    return updated
+
+# --------------------------
 # WebSocket Endpoint for Rooms
 # --------------------------
 
@@ -292,6 +329,20 @@ async def websocket_meeting_endpoint(
             event_type = data.get("type")
 
             if event_type == "CHAT_MESSAGE":
+                # Log CHAT event for Meeting Insights
+                db_session = get_db()
+                db = next(db_session)
+                try:
+                    crud.create_meeting_event(
+                        db=db,
+                        meeting_id=meeting_id,
+                        event_type="CHAT",
+                        actor_name=display_name,
+                        description=f"{display_name}: {data.get('text', '')[:50]}"
+                    )
+                finally:
+                    db.close()
+
                 await manager.broadcast(meeting_id, {
                     "type": "CHAT_MESSAGE",
                     "sender_token": client_token,
@@ -350,6 +401,46 @@ async def websocket_meeting_endpoint(
                 target_token = data.get("target_token")
                 if target_token:
                     await manager.handle_host_kick(meeting_id, client_token, target_token)
+
+            elif event_type == "SCREEN_SHARE_STARTED":
+                db_session = get_db()
+                db = next(db_session)
+                try:
+                    crud.create_meeting_event(
+                        db=db,
+                        meeting_id=meeting_id,
+                        event_type="SCREEN_SHARE_START",
+                        actor_name=display_name,
+                        description=f"{display_name} started screen sharing."
+                    )
+                finally:
+                    db.close()
+
+                await manager.broadcast(meeting_id, {
+                    "type": "SCREEN_SHARE_STARTED",
+                    "sender_token": client_token,
+                    "sender_name": display_name
+                }, exclude_token=client_token)
+
+            elif event_type == "SCREEN_SHARE_STOPPED":
+                db_session = get_db()
+                db = next(db_session)
+                try:
+                    crud.create_meeting_event(
+                        db=db,
+                        meeting_id=meeting_id,
+                        event_type="SCREEN_SHARE_STOP",
+                        actor_name=display_name,
+                        description=f"{display_name} stopped screen sharing."
+                    )
+                finally:
+                    db.close()
+
+                await manager.broadcast(meeting_id, {
+                    "type": "SCREEN_SHARE_STOPPED",
+                    "sender_token": client_token,
+                    "sender_name": display_name
+                }, exclude_token=client_token)
 
             elif event_type == "END_MEETING":
                 if meeting_id in manager.rooms:

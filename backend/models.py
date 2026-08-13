@@ -1,5 +1,6 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, UniqueConstraint, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 
 class Meeting(Base):
@@ -54,4 +55,28 @@ class User(Base):
     avatar_url = Column(String(512), nullable=True)
     provider = Column(String(20), nullable=False, default="EMAIL") # EMAIL, GOOGLE
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+class ActionItem(Base):
+    __tablename__ = "action_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    meeting_id = Column(String(12), ForeignKey("meetings.id"), nullable=False, index=True)
+    task = Column(String(255), nullable=False)
+    assigned_to_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_to_name = Column(String(255), nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    completed = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    assigned_user = relationship("User", foreign_keys=[assigned_to_user_id])
+
+class MeetingEvent(Base):
+    __tablename__ = "meeting_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    meeting_id = Column(String(12), ForeignKey("meetings.id"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False) # JOIN, LEFT, KICK, CHAT, SCREEN_SHARE_START, SCREEN_SHARE_STOP
+    actor_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
 

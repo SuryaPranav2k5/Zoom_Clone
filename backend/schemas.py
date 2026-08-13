@@ -104,3 +104,57 @@ class AuthTokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+class ActionItemCreate(BaseModel):
+    task: str = Field(min_length=1, max_length=255)
+    assigned_to_user_id: Optional[int] = None
+    assigned_to_name: Optional[str] = None
+    due_date: Optional[datetime.datetime] = None
+
+class ActionItemResponse(BaseModel):
+    id: int
+    meeting_id: str
+    task: str
+    assigned_to_user_id: Optional[int] = None
+    assigned_to_name: Optional[str] = None
+    due_date: Optional[datetime.datetime] = None
+    completed: bool
+    created_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+class MeetingEventResponse(BaseModel):
+    id: int
+    meeting_id: str
+    event_type: str
+    actor_name: str
+    description: Optional[str] = None
+    timestamp: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+class ParticipantAttendanceResponse(BaseModel):
+    display_name: str
+    is_host: bool
+    joined_at: datetime.datetime
+    left_at: Optional[datetime.datetime] = None
+    is_kicked: bool
+    duration_minutes: int
+    percentage: float
+
+class MeetingInsightsResponse(BaseModel):
+    meeting_id: str
+    title: str
+    host_name: str
+    status: str
+    started_at: Optional[datetime.datetime] = None
+    ended_at: Optional[datetime.datetime] = None
+    total_duration_minutes: int
+    total_participants: int
+    total_chat_messages: int
+    total_screen_shares: int
+    attendance: List[ParticipantAttendanceResponse]
+    timeline: List[MeetingEventResponse]
+    action_items: List[ActionItemResponse]
+

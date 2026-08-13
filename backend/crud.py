@@ -2,7 +2,7 @@ import random
 import datetime
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from models import Meeting, Participant, User
+from models import Meeting, Participant, User, ActionItem, MeetingEvent
 from schemas import InstantMeetingCreate, ScheduledMeetingCreate, UserSignupRequest
 import auth
 
@@ -204,4 +204,132 @@ def create_or_get_google_user(db: Session, email: str, full_name: str, avatar_ur
             db.commit()
             db.refresh(user)
     return user
+
+def create_meeting_event(db: Session, meeting_id: str, event_type: str, actor_name: str, description: Optional[str] = None) -> MeetingEvent:
+    event = MeetingEvent(
+        meeting_id=meeting_id,
+        event_type=event_type,
+        actor_name=actor_name,
+        description=description,
+        timestamp=datetime.datetime.utcnow()
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+def get_meeting_events(db: Session, meeting_id: str) -> List[MeetingEvent]:
+    return db.query(MeetingEvent).filter(MeetingEvent.meeting_id == meeting_id).order_by(MeetingEvent.timestamp.asc()).all()
+
+def create_action_item(
+    db: Session,
+    meeting_id: str,
+    task: str,
+    assigned_to_user_id: Optional[int] = None,
+    assigned_to_name: Optional[str] = None,
+    due_date: Optional[datetime.datetime] = None
+) -> ActionItem:
+    item = ActionItem(
+        meeting_id=meeting_id,
+        task=task.strip(),
+        assigned_to_user_id=assigned_to_user_id,
+        assigned_to_name=assigned_to_name.strip() if (assigned_to_name and not assigned_to_user_id) else None,
+        due_date=due_date,
+        completed=False,
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+def get_action_items(db: Session, meeting_id: str) -> List[ActionItem]:
+    return db.query(ActionItem).filter(ActionItem.meeting_id == meeting_id).order_by(ActionItem.created_at.asc()).all()
+
+def toggle_action_item(db: Session, action_item_id: int) -> Optional[ActionItem]:
+    item = db.query(ActionItem).filter(ActionItem.id == action_item_id).first()
+    if item:
+        item.completed = not item.completed
+        db.commit()
+        db.refresh(item)
+    return item
+
+def get_meeting_insights(db: Session, meeting_id: str) -> Optional[dict]:
+    meeting = get_meeting(db, meeting_id)
+    if not meeting:
+        return None
+
+    now = datetime.datetime.utcnow()
+    start_time = meeting.started_at or meeting.created_at
+    end_time = meeting.ended_at or now
+
+    total_duration_minutes = max(1, int((end_time - start_time).total_seconds() / 60))
+
+    participants = db.query(Participant).filter(Participant.meeting_id == meeting_id).all()
+    total_participants = len(participants)
+
+    # 3-tier attendance calculation rule:
+    # 1) If left_at is set (normal leave or KICK): duration = left_at - joined_at
+    # 2) If left_at is null & meeting ended (browser crash): duration = meeting.ended_at - joined_at
+    # 3) If left_at is null & meeting active: duration = now - joined_at
+    attendance = []
+    for p in participants:
+        if p.left_at:
+            eff_end = p.left_at
+        elif meeting.ended_at:
+            eff_end = meeting.ended_at
+        else:
+            eff_end = now
+
+        p_mins = max(1, int((eff_end - p.joined_at).total_seconds() / 60))
+        pct = min(100.0, round((p_mins / total_duration_minutes) * 100, 1))
+
+        attendance.append({
+            "display_name": p.display_name,
+            "is_host": p.is_host,
+            "joined_at": p.joined_at,
+            "left_at": p.left_at,
+            "is_kicked": p.is_kicked,
+            "duration_minutes": p_mins,
+            "percentage": pct
+        })
+
+    events = get_meeting_events(db, meeting_id)
+    chat_count = sum(1 for e in events if e.event_type == "CHAT")
+    screen_share_count = sum(1 for e in events if e.event_type == "SCREEN_SHARE_START")
+
+    raw_action_items = get_action_items(db, meeting_id)
+    formatted_action_items = []
+    for item in raw_action_items:
+        assignee_name = item.assigned_to_name
+        if item.assigned_user:
+            assignee_name = item.assigned_user.full_name
+
+        formatted_action_items.append({
+            "id": item.id,
+            "meeting_id": item.meeting_id,
+            "task": item.task,
+            "assigned_to_user_id": item.assigned_to_user_id,
+            "assigned_to_name": assignee_name,
+            "due_date": item.due_date,
+            "completed": item.completed,
+            "created_at": item.created_at
+        })
+
+    return {
+        "meeting_id": meeting.id,
+        "title": meeting.title,
+        "host_name": meeting.host_name,
+        "status": meeting.status,
+        "started_at": meeting.started_at or meeting.created_at,
+        "ended_at": meeting.ended_at,
+        "total_duration_minutes": total_duration_minutes,
+        "total_participants": total_participants,
+        "total_chat_messages": chat_count,
+        "total_screen_shares": screen_share_count,
+        "attendance": attendance,
+        "timeline": events,
+        "action_items": formatted_action_items
+    }
+
 

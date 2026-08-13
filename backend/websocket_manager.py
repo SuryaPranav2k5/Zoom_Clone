@@ -149,6 +149,15 @@ class ConnectionManager:
                 "is_video_off": is_video_off_val
             }
 
+            # Record JOIN event in SQLite for Meeting Insights
+            crud.create_meeting_event(
+                db=db,
+                meeting_id=meeting.id,
+                event_type="JOIN",
+                actor_name=display_name_val,
+                description=f"{display_name_val} joined the meeting."
+            )
+
             # Send JOIN_SUCCESS to connecting client
             await websocket.send_json({
                 "type": "JOIN_SUCCESS",
@@ -185,7 +194,7 @@ class ConnectionManager:
             display_name = part_info.get("display_name", "Participant")
             is_host = part_info.get("is_host", False)
 
-            # Update DB left_at
+            # Update DB left_at and record LEFT event
             db = SessionLocal()
             try:
                 db_part = db.query(Participant).filter(
@@ -195,6 +204,13 @@ class ConnectionManager:
                 if db_part:
                     db_part.left_at = datetime.datetime.utcnow()
                     db.commit()
+                crud.create_meeting_event(
+                    db=db,
+                    meeting_id=meeting_id,
+                    event_type="LEFT",
+                    actor_name=display_name,
+                    description=f"{display_name} left the meeting."
+                )
             finally:
                 db.close()
 
@@ -301,9 +317,18 @@ class ConnectionManager:
                     Participant.meeting_id == meeting_id,
                     Participant.client_token == target_token
                 ).first()
+                target_name = db_part.display_name if db_part else "Participant"
                 if db_part:
                     db_part.is_kicked = True
+                    db_part.left_at = datetime.datetime.utcnow()
                     db.commit()
+                crud.create_meeting_event(
+                    db=db,
+                    meeting_id=meeting_id,
+                    event_type="KICK",
+                    actor_name=target_name,
+                    description=f"{target_name} was removed from the meeting by the host."
+                )
             finally:
                 db.close()
 

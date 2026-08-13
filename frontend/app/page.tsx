@@ -19,11 +19,13 @@ import {
   Trash2,
   ShieldAlert,
   Info,
-  X
+  X,
+  Brain
 } from "lucide-react";
 import Link from "next/link";
 import JoinModal from "../components/JoinModal";
 import ScheduleModal from "../components/ScheduleModal";
+import MeetingInsightsModal from "../components/MeetingInsightsModal";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../lib/config";
 
@@ -54,6 +56,7 @@ export default function DashboardPage() {
   // Modals state
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [isShareScreenOpen, setIsShareScreenOpen] = useState(false);
   const [shareMeetingIdInput, setShareMeetingIdInput] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -406,21 +409,18 @@ export default function DashboardPage() {
                 <span className="text-xs text-gray-400 mt-0.5">Plan ahead</span>
               </button>
 
-              {/* Share Screen (Green / Slate Button) */}
+              {/* Meeting Insights (Purple/Indigo Analytics Button) */}
               <button
-                onClick={() => {
-                  setShareMeetingIdInput("");
-                  setIsShareScreenOpen(true);
-                }}
-                className="group bg-white hover:bg-green-50/50 p-5 rounded-2xl border border-gray-200 hover:border-green-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
+                onClick={() => setIsInsightsOpen(true)}
+                className="group bg-white hover:bg-purple-50/50 p-5 rounded-2xl border border-gray-200 hover:border-purple-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
               >
-                <div className="w-14 h-14 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
-                  <Share2 className="w-7 h-7" />
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                  <Brain className="w-7 h-7" />
                 </div>
-                <span className="text-sm font-bold text-gray-800 group-hover:text-green-600">
-                  Share Screen
+                <span className="text-sm font-bold text-gray-800 group-hover:text-purple-600 flex items-center gap-1">
+                  Meeting Insights
                 </span>
-                <span className="text-xs text-gray-400 mt-0.5">Enter Sharing Key</span>
+                <span className="text-xs text-gray-400 mt-0.5">Analytics & Summary</span>
               </button>
             </div>
           </div>
@@ -684,6 +684,13 @@ export default function DashboardPage() {
           </form>
         </div>
       )}
+
+      {/* Meeting Insights Analytics Modal */}
+      <MeetingInsightsModal
+        isOpen={isInsightsOpen}
+        onClose={() => setIsInsightsOpen(false)}
+        recentMeetings={recentMeetings}
+      />
 
       {/* Custom Toast Popup Notification */}
       {toastMsg && (
