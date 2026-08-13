@@ -1,0 +1,401 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Video,
+  Plus,
+  Calendar,
+  Share2,
+  Clock,
+  Copy,
+  ExternalLink,
+  Search,
+  Settings,
+  User,
+  ShieldCheck,
+  Check,
+  RefreshCw
+} from "lucide-react";
+import JoinModal from "../components/JoinModal";
+import ScheduleModal from "../components/ScheduleModal";
+
+interface MeetingItem {
+  id: string;
+  title: string;
+  description?: string;
+  passcode_required: boolean;
+  meeting_type: string;
+  status: string;
+  scheduled_start_time?: string;
+  duration_minutes: number;
+  created_at: string;
+  ended_at?: string;
+  host_name: string;
+  invite_link?: string;
+}
+
+export default function ZoomDashboard() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"upcoming" | "recent">("upcoming");
+  const [upcomingMeetings, setUpcomingMeetings] = useState<MeetingItem[]>([]);
+  const [recentMeetings, setRecentMeetings] = useState<MeetingItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Modals state
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Live time clock
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setCurrentTime(new Date());
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fetchMeetings = async () => {
+    setIsLoading(true);
+    try {
+      const [upRes, recRes] = await Promise.all([
+        fetch("http://127.0.0.1:8000/api/meetings/upcoming"),
+        fetch("http://127.0.0.1:8000/api/meetings/recent"),
+      ]);
+
+      if (upRes.ok) setUpcomingMeetings(await upRes.json());
+      if (recRes.ok) setRecentMeetings(await recRes.json());
+    } catch (err) {
+      console.error("Error fetching meetings:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMeetings();
+  }, []);
+
+  const handleInstantMeeting = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/meetings/instant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host_name: "Host User", title: "Instant Meeting" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/meeting/${data.id}?host=true`);
+      }
+    } catch (err) {
+      alert("Unable to create instant meeting. Ensure backend server is running.");
+    }
+  };
+
+  const handleJoinFromModal = (
+    meetingId: string,
+    displayName: string,
+    passcode?: string,
+    micOn: boolean = true,
+    videoOn: boolean = true
+  ) => {
+    setIsJoinOpen(false);
+    const params = new URLSearchParams({
+      name: displayName,
+      mic: micOn ? "1" : "0",
+      video: videoOn ? "1" : "0",
+    });
+    if (passcode) params.append("passcode", passcode);
+    router.push(`/meeting/${meetingId}?${params.toString()}`);
+  };
+
+  const handleCopyLink = (meetingId: string) => {
+    const fullUrl = `${window.location.origin}/meeting/${meetingId}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedId(meetingId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const formatTimeStr = (isoStr?: string) => {
+    if (!isoStr) return "N/A";
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const formatDateStr = (isoStr?: string) => {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f7f9fa] flex flex-col font-sans">
+      {/* Top Navbar */}
+      <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+        {/* Brand Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#0e71eb] rounded-xl flex items-center justify-center text-white shadow-md">
+            <Video className="w-5 h-5 fill-current" />
+          </div>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">zoom</span>
+          <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200">
+            Workspaces
+          </span>
+        </div>
+
+        {/* Global Search Bar */}
+        <div className="hidden md:flex items-center bg-gray-100/80 rounded-full px-4 py-2 w-80 border border-gray-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+          <Search className="w-4 h-4 text-gray-400 mr-2" />
+          <input
+            type="text"
+            placeholder="Search meetings, contacts..."
+            className="bg-transparent text-sm text-gray-800 outline-hidden w-full placeholder-gray-400"
+          />
+        </div>
+
+        {/* User & Settings Right Bar */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={fetchMeetings}
+            title="Refresh Data"
+            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100">
+            AR
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Hero & Action Grid (7 Columns) */}
+        <div className="lg:col-span-7 space-y-8">
+          {/* Live Date/Time Clock Card */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-4xl font-extrabold tracking-tight">
+                  {currentTime ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "12:00 PM"}
+                </h1>
+                <p className="text-blue-100 text-sm font-medium mt-1">
+                  {currentTime ? currentTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ""}
+                </p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-xs font-semibold text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-green-300" /> Secure Meeting Environment
+              </div>
+            </div>
+          </div>
+
+          {/* Core Action Buttons Grid */}
+          <div>
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-1">
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* New Meeting (Orange) */}
+              <button
+                onClick={handleInstantMeeting}
+                className="group bg-white hover:bg-orange-50/50 p-5 rounded-2xl border border-gray-200 hover:border-orange-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
+              >
+                <div className="w-14 h-14 zoom-orange-btn rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                  <Video className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 group-hover:text-orange-600">
+                  New Meeting
+                </span>
+                <span className="text-xs text-gray-400 mt-0.5">Start instantly</span>
+              </button>
+
+              {/* Join (Blue) */}
+              <button
+                onClick={() => {
+                  setSelectedMeetingId("");
+                  setIsJoinOpen(true);
+                }}
+                className="group bg-white hover:bg-blue-50/50 p-5 rounded-2xl border border-gray-200 hover:border-blue-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
+              >
+                <div className="w-14 h-14 zoom-blue-btn rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                  <Plus className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 group-hover:text-blue-600">
+                  Join
+                </span>
+                <span className="text-xs text-gray-400 mt-0.5">Via ID or link</span>
+              </button>
+
+              {/* Schedule (Blue) */}
+              <button
+                onClick={() => setIsScheduleOpen(true)}
+                className="group bg-white hover:bg-blue-50/50 p-5 rounded-2xl border border-gray-200 hover:border-blue-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
+              >
+                <div className="w-14 h-14 zoom-blue-btn rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                  <Calendar className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-gray-800 group-hover:text-blue-600">
+                  Schedule
+                </span>
+                <span className="text-xs text-gray-400 mt-0.5">Plan ahead</span>
+              </button>
+
+              {/* Share Screen (Blue Placeholder) */}
+              <button
+                onClick={() => alert("Share Screen feature placeholder. Join a meeting to share screen.")}
+                className="group bg-white hover:bg-gray-50 p-5 rounded-2xl border border-gray-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all opacity-80 cursor-pointer"
+              >
+                <div className="w-14 h-14 bg-gray-700 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                  <Share2 className="w-7 h-7" />
+                </div>
+                <span className="text-sm font-bold text-gray-800">Share Screen</span>
+                <span className="text-xs text-gray-400 mt-0.5">In-meeting</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side Panel: Upcoming & Recent Meetings (5 Columns) */}
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-gray-200 p-6 zoom-card-shadow flex flex-col h-[520px]">
+          {/* Panel Header Tabs */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveTab("upcoming")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "upcoming"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Upcoming ({upcomingMeetings.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("recent")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "recent"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Recent ({recentMeetings.length})
+              </button>
+            </div>
+          </div>
+
+          {/* List Content */}
+          <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                <RefreshCw className="w-6 h-6 animate-spin mb-2 text-blue-500" />
+                <span className="text-xs">Loading meetings...</span>
+              </div>
+            ) : activeTab === "upcoming" ? (
+              upcomingMeetings.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Calendar className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm font-medium">No upcoming meetings scheduled.</p>
+                </div>
+              ) : (
+                upcomingMeetings.map((m) => (
+                  <div
+                    key={m.id}
+                    className="p-4 bg-gray-50/80 hover:bg-blue-50/40 rounded-2xl border border-gray-200/80 transition-all space-y-2 group"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600">
+                          {m.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                          <Clock className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{formatDateStr(m.scheduled_start_time)} at {formatTimeStr(m.scheduled_start_time)}</span>
+                          <span>•</span>
+                          <span>{m.duration_minutes} mins</span>
+                        </div>
+                      </div>
+                      <span className="font-mono text-xs bg-gray-200/80 px-2 py-0.5 rounded-md text-gray-700 font-semibold">
+                        {m.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">Host: <strong className="text-gray-700">{m.host_name}</strong></span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleCopyLink(m.id)}
+                          title="Copy Link"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          {copiedId === m.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedMeetingId(m.id);
+                            setIsJoinOpen(true);
+                          }}
+                          className="zoom-blue-btn text-white px-3 py-1 rounded-lg text-xs font-semibold shadow-xs"
+                        >
+                          Start / Join
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : (
+              recentMeetings.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Clock className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm font-medium">No recent meeting history found.</p>
+                </div>
+              ) : (
+                recentMeetings.map((m) => (
+                  <div
+                    key={m.id}
+                    className="p-4 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-2"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900">{m.title}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">Ended at: {formatDateStr(m.ended_at)} {formatTimeStr(m.ended_at)}</p>
+                      </div>
+                      <span className="font-mono text-xs bg-gray-200/80 px-2 py-0.5 rounded-md text-gray-700 font-semibold">
+                        {m.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                      <span>Host: <strong className="text-gray-700">{m.host_name}</strong></span>
+                      <span className="bg-red-50 text-red-600 font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                        Ended
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Modals */}
+      <JoinModal
+        isOpen={isJoinOpen}
+        onClose={() => setIsJoinOpen(false)}
+        onJoin={handleJoinFromModal}
+        initialMeetingId={selectedMeetingId}
+      />
+
+      <ScheduleModal
+        isOpen={isScheduleOpen}
+        onClose={() => setIsScheduleOpen(false)}
+        onScheduledSuccess={() => {
+          fetchMeetings();
+        }}
+      />
+    </div>
+  );
+}
