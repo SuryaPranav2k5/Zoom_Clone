@@ -1,29 +1,38 @@
 # Zoom Clone - Video Conferencing Platform
 
-A fullstack **Zoom Web Application Clone** replicating Zoom's design, user experience, and core meeting workflows.
-
-![Zoom Clone](https://zoom.us/favicon.ico)
+A fullstack **Zoom Web Application Clone** built with Next.js, FastAPI, WebRTC, and SQLite, replicating Zoom's design, user experience, authentication, and core meeting workflows.
 
 ---
 
 ## 🌟 Key Features
 
-* **Authentic Zoom UI & Experience**:
+* **Authentic Zoom UI & User Experience**:
   * **Light Theme Dashboard**: Date/time clock, Quick Action Cards (*New Meeting*, *Join*, *Schedule*, *Share Screen*), and tabbed *Upcoming Meetings* and *Recent Meetings* lists.
-  * **Signature Dark Theme Meeting Room**: 2x2 responsive grid layout (capped at 4 participants), audio visualizer wave indicators, and avatar fallbacks when video is turned off.
-  * **Bottom Meeting Control Bar**: Mic toggle, Video toggle, Security/Host controls, Participants side drawer (live badge count), In-meeting Chat side drawer, Emoji Reactions, and End/Leave Meeting modal.
+  * **Signature Dark Theme Meeting Room**: Responsive 2x2 grid layout (capped at 4 participants), audio visualizer wave indicators, and avatar fallbacks when video is turned off.
+  * **Bottom Meeting Control Bar**: Mic toggle, Video toggle, Security/Host controls, Participants drawer (live badge count), In-meeting Chat drawer, Emoji Reactions, live WebRTC **Share Screen**, and End/Leave Meeting modal.
+  * **Zero Native Browser Popups**: All alerts and confirmation dialogs use custom Tailwind CSS modals (**Leave / End Meeting**, **Remove Participant**, **Delete Meeting**) and floating Toast notifications. Silent instant redirect to `/` when meetings end.
+
+* **User Authentication & Role Management**:
+  * **Authentication System**: Email/Password Signup & Login + Google OAuth integration with persistent state (`AuthContext`).
+  * **Guest vs Host Access Control**: Unauthenticated guest users can **Join** any meeting via ID/Link, but are restricted from starting or scheduling meetings (prompts login redirect).
+  * **Host Auto-Population**: Creating or scheduling a meeting automatically populates the signed-in user's name as the Host.
 
 * **Core Meeting Workflows**:
   1. **Instant Meeting Creation**: Generates a 10-digit meeting ID (`XXX-XXX-XXXX`), shareable invite link, and redirects host immediately to the live room.
   2. **Join Meeting**: Join via 10-digit Meeting ID or direct URL with pre-join camera/mic options and display name validation.
   3. **Schedule Meetings**: Modal form with topic, host name, date & time picker, duration, optional passcode protection, stored in SQLite and listed under *Upcoming Meetings*.
   4. **Passcode Protection**: Optional passcode generated during scheduling and verified end-to-end (`POST /api/meetings/validate-passcode`).
+  5. **Early Join Guard**: Restricts attendees from entering before the scheduled start time; host can join anytime.
+  6. **Permanent Database Deletion**: Deleting a meeting permanently purges the meeting row and all associated participant records from SQLite (`DELETE FROM meetings`, `DELETE FROM participants`).
+
+* **Live WebRTC Screen Sharing**:
+  * **Dashboard Share Screen Modal**: Prompts for a Meeting ID / Sharing Key to launch directly into a screen-sharing session.
+  * **In-Meeting Screen Sharing**: Green toolbar button using browser `navigator.mediaDevices.getDisplayMedia()` to hot-swap WebRTC video tracks and stream window/tab/screen live to all participants.
 
 * **Real-time Engine & Host Controls**:
   * **FastAPI WebSocket Manager**: Real-time signaling, participant state sync (Mute/Unmute, Video On/Off), and in-meeting text chat.
   * **WebRTC Multi-Peer Mesh & Metered TURN**: Configured with Google STUN (`stun:stun.l.google.com:19302`) + OpenRelay Metered TURN (`turn:openrelay.metered.ca:80/443`) for traversal across symmetric NATs and firewalls.
   * **Host Controls**: Host can *Mute All Participants* or *Remove (Kick) Participant*. Kicked participants have their `client_token` banned server-side to prevent rejoining.
-  * **Host Disconnect 30s Grace Period**: If a host unexpectedly drops, a 30-second grace period banner is displayed; if unhandled, the server safely ends the meeting for all participants.
   * **Session Reconnect (`client_token`)**: Uses client-side UUID stored in `sessionStorage` to allow browser refresh re-attachment without inflating participant slot count.
 
 ---
@@ -43,26 +52,35 @@ A fullstack **Zoom Web Application Clone** replicating Zoom's design, user exper
    ┌─────────────────────────────────────────────────────────────┐
    │                    FastAPI (Backend)                         │
    │  ┌───────────────────────┐       ┌───────────────────────┐  │
-   │  │   REST & Validation   │       │ WebSocket & Signaling │  │
-   │  │ (Passcode & Lifecycle)│       │ (Mute/Kick & WebRTC)  │  │
+   │  │   REST & Auth APIs    │       │ WebSocket & Signaling │  │
+   │  │ (Auth, Passcode, CRUD)│       │ (Mute/Kick & WebRTC)  │  │
    │  └───────────┬───────────┘       └───────────┬───────────┘  │
    └──────────────┼───────────────────────────────┼──────────────┘
                   │ SQLAlchemy ORM
                   ▼
    ┌─────────────────────────────────────────────────────────────┐
-   │          SQLite Database (Normalized with 1 Denorm)         │
-   │             (meetings, participants)                        │
+   │          SQLite Database (Normalized Schema)                 │
+   │             (users, meetings, participants)                 │
+   │             (Cascading Deletes & Unique Constraints)         │
    └─────────────────────────────────────────────────────────────┘
 ```
 
-* **Frontend**: Next.js (App Router), TypeScript, Tailwind CSS, Lucide Icons
-* **Backend**: Python 3.11+, FastAPI, Uvicorn, SQLAlchemy, WebSockets
+* **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS, Lucide Icons
+* **Backend**: Python 3.11+, FastAPI, Uvicorn, SQLAlchemy, WebSockets, Passlib (bcrypt)
 * **Database**: SQLite (`zoom_clone.db`)
 * **Package Management**: `uv` (Python), `npm` (Node.js)
 
 ---
 
 ## 🗄️ Database Design (Normalized 3NF Schema)
+
+### `users` Table
+* `id` (PK, INTEGER): Auto-increment ID.
+* `email` (VARCHAR(255), UNIQUE): User email.
+* `full_name` (VARCHAR(255)): User display name.
+* `hashed_password` (VARCHAR(255)): Bcrypt password hash (nullable for OAuth).
+* `provider` (VARCHAR(50)): `EMAIL` or `GOOGLE`.
+* `avatar_url` (VARCHAR(512)): Optional avatar image URL.
 
 ### `meetings` Table
 * `id` (PK, VARCHAR(12)): Strictly 10-digit numeric string formatted as `XXX-XXX-XXXX` (e.g. `845-912-3401`).
@@ -71,10 +89,11 @@ A fullstack **Zoom Web Application Clone** replicating Zoom's design, user exper
 * `passcode` (VARCHAR(64)): Optional passcode.
 * `meeting_type` (VARCHAR(20)): `INSTANT` or `SCHEDULED`.
 * `status` (VARCHAR(20)): `UPCOMING`, `LIVE`, or `ENDED`.
-* `scheduled_start_time` (DATETIME): Scheduled start time.
+* `scheduled_start_time` (DATETIME): Scheduled start time in UTC ISO.
 * `duration_minutes` (INTEGER): Default 40 mins.
 * `created_at`, `started_at`, `ended_at` (DATETIME).
 * `host_name` (VARCHAR(255)): Intentional denormalization for fast O(1) dashboard queries.
+* `host_email` (VARCHAR(255)): Host email address.
 
 ### `participants` Table
 * `id` (PK, INTEGER): Auto-increment ID.
@@ -85,7 +104,6 @@ A fullstack **Zoom Web Application Clone** replicating Zoom's design, user exper
 * `is_muted`, `is_video_off` (BOOLEAN): Real-time media states.
 * `is_kicked` (BOOLEAN): Server-enforced ban flag.
 * `joined_at`, `left_at` (DATETIME).
-* *Constraint*: `UniqueConstraint('meeting_id', 'client_token')`.
 
 ---
 
@@ -96,9 +114,9 @@ A fullstack **Zoom Web Application Clone** replicating Zoom's design, user exper
 * Node.js 18+ and `npm`
 * `uv` (Fast Python package manager)
 
-### 🚀 Quick Start (Launch Both Frontend & Backend)
+### 🚀 Quick Start (Launch Both Frontend & Backend Concurrently)
 
-From the root project directory, simply run:
+From the root project directory, run:
 
 ```bash
 # Run both FastAPI backend (port 8000) and Next.js frontend (port 3000) concurrently

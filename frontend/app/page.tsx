@@ -18,7 +18,8 @@ import {
   RefreshCw,
   Trash2,
   ShieldAlert,
-  Info
+  Info,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import JoinModal from "../components/JoinModal";
@@ -28,31 +29,32 @@ import { useAuth } from "../context/AuthContext";
 interface MeetingItem {
   id: string;
   title: string;
-  description?: string;
-  passcode_required: boolean;
-  meeting_type: string;
-  status: string;
-  scheduled_start_time?: string;
-  duration_minutes: number;
-  created_at: string;
-  ended_at?: string;
   host_name: string;
   host_email?: string;
+  scheduled_start_time?: string;
+  duration_minutes: number;
+  passcode_required: boolean;
+  status: "UPCOMING" | "IN_PROGRESS" | "ENDED";
+  created_at: string;
+  ended_at?: string;
   invitees?: string;
-  invite_link?: string;
 }
 
-export default function ZoomDashboard() {
+export default function DashboardPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "recent">("upcoming");
+
+  // Data state
   const [upcomingMeetings, setUpcomingMeetings] = useState<MeetingItem[]>([]);
   const [recentMeetings, setRecentMeetings] = useState<MeetingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"upcoming" | "recent">("upcoming");
 
   // Modals state
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isShareScreenOpen, setIsShareScreenOpen] = useState(false);
+  const [shareMeetingIdInput, setShareMeetingIdInput] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [avatarImgError, setAvatarImgError] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
@@ -174,6 +176,14 @@ export default function ZoomDashboard() {
       return;
     }
     setIsScheduleOpen(true);
+  };
+
+  const handleShareScreenSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shareMeetingIdInput.trim()) return;
+    setIsShareScreenOpen(false);
+    const displayName = user?.full_name || "Guest User";
+    router.push(`/meeting/${shareMeetingIdInput.trim()}?name=${encodeURIComponent(displayName)}&screen=true`);
   };
 
   const handleJoinFromModal = (
@@ -395,16 +405,21 @@ export default function ZoomDashboard() {
                 <span className="text-xs text-gray-400 mt-0.5">Plan ahead</span>
               </button>
 
-              {/* Share Screen (Blue Placeholder) */}
+              {/* Share Screen (Green / Slate Button) */}
               <button
-                onClick={() => showToast("Share Screen feature available inside active meetings.", "info")}
-                className="group bg-white hover:bg-gray-50 p-5 rounded-2xl border border-gray-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all opacity-80 cursor-pointer"
+                onClick={() => {
+                  setShareMeetingIdInput("");
+                  setIsShareScreenOpen(true);
+                }}
+                className="group bg-white hover:bg-green-50/50 p-5 rounded-2xl border border-gray-200 hover:border-green-200 zoom-card-shadow flex flex-col items-center justify-center text-center transition-all cursor-pointer"
               >
-                <div className="w-14 h-14 bg-gray-700 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-105 transition-transform">
                   <Share2 className="w-7 h-7" />
                 </div>
-                <span className="text-sm font-bold text-gray-800">Share Screen</span>
-                <span className="text-xs text-gray-400 mt-0.5">In-meeting</span>
+                <span className="text-sm font-bold text-gray-800 group-hover:text-green-600">
+                  Share Screen
+                </span>
+                <span className="text-xs text-gray-400 mt-0.5">Enter Sharing Key</span>
               </button>
             </div>
           </div>
@@ -607,6 +622,65 @@ export default function ZoomDashboard() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Share Screen Custom Modal */}
+      {isShareScreenOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <form
+            onSubmit={handleShareScreenSubmit}
+            className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150"
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-xl flex items-center justify-center">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">Share Screen</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareScreenOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-gray-700">
+                Sharing Key or Meeting ID
+              </label>
+              <input
+                type="text"
+                value={shareMeetingIdInput}
+                onChange={(e) => setShareMeetingIdInput(e.target.value)}
+                placeholder="e.g. 845-912-3401"
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-hidden text-sm font-mono transition-all"
+              />
+              <p className="text-[11px] text-gray-400">
+                Entering a Meeting ID allows you to join and share your screen immediately.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsShareScreenOpen(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer"
+              >
+                Share Screen
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

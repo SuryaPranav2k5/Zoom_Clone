@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   Radio,
   ShieldAlert,
-  Info
+  Info,
+  Share2
 } from "lucide-react";
 
 interface ParticipantInfo {
@@ -79,6 +80,8 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [kickTargetToken, setKickTargetToken] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; type?: "info" | "success" | "error" } | null>(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const showToast = (text: string, type: "info" | "success" | "error" = "info") => {
     setToastMsg({ text, type });
@@ -552,6 +555,60 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
     );
   };
 
+  const toggleScreenShare = async () => {
+    if (isScreenSharing) {
+      if (screenTrackRef.current) {
+        screenTrackRef.current.stop();
+        screenTrackRef.current = null;
+      }
+      setIsScreenSharing(false);
+      showToast("Screen sharing stopped.", "info");
+
+      if (localStreamRef.current) {
+        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+        if (videoTrack) {
+          Object.values(peerConnectionsRef.current).forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+            if (sender) sender.replaceTrack(videoTrack);
+          });
+        }
+      }
+    } else {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        screenTrackRef.current = screenTrack;
+        setIsScreenSharing(true);
+        showToast("You are sharing your screen.", "success");
+
+        Object.values(peerConnectionsRef.current).forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+          if (sender) sender.replaceTrack(screenTrack);
+        });
+
+        screenTrack.onended = () => {
+          screenTrackRef.current = null;
+          setIsScreenSharing(false);
+          showToast("Screen sharing ended.", "info");
+          if (localStreamRef.current) {
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+              Object.values(peerConnectionsRef.current).forEach((pc) => {
+                const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+                if (sender) sender.replaceTrack(videoTrack);
+              });
+            }
+          }
+        };
+      } catch (err) {
+        console.error("Screen share error:", err);
+      }
+    }
+  };
+
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -1018,6 +1075,20 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
           >
             <MessageSquare className="w-5 h-5" />
             <span className="text-[10px] mt-0.5">Chat</span>
+          </button>
+
+          {/* Share Screen Control (Zoom Green) */}
+          <button
+            type="button"
+            onClick={toggleScreenShare}
+            className={`flex flex-col items-center justify-center w-16 h-11 rounded-xl transition-all cursor-pointer ${
+              isScreenSharing
+                ? "bg-green-600 text-white font-bold shadow-md"
+                : "text-green-400 hover:bg-gray-800 hover:text-green-300"
+            }`}
+          >
+            <Share2 className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
           </button>
 
           {/* Quick Emoji Reactions */}
