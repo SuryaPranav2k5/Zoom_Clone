@@ -62,7 +62,7 @@ class ConnectionManager:
                 return
 
             now = datetime.datetime.utcnow()
-            is_actual_host = is_host or (
+            is_actual_host = requested_is_host or (
                 (meeting.host_email and display_name.lower().strip() == meeting.host_email.lower().strip()) or
                 (meeting.host_name and display_name.lower().strip() == meeting.host_name.lower().strip())
             )
