@@ -76,12 +76,11 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
     }
   };
 
-  const handleCopyFullInvitation = () => {
+  const handleCopyInviteLink = () => {
     if (createdMeetingInfo) {
       const fullUrl = `${window.location.origin}/meeting/${createdMeetingInfo.id}`;
-      const inviteText = `${hostName} is inviting you to a scheduled Zoom meeting.\n\nTopic: ${createdMeetingInfo.title}\nTime: ${new Date(startDate).toLocaleString()}\n\nJoin Zoom Meeting:\n${fullUrl}\n\nMeeting ID: ${createdMeetingInfo.id}${createdMeetingInfo.passcode_required ? `\nPasscode: ${passcode}` : ""}${createdMeetingInfo.invitees ? `\nInvitees: ${createdMeetingInfo.invitees}` : ""}`;
-      navigator.clipboard.writeText(inviteText);
-      alert("Full Zoom Invitation copied to clipboard!");
+      navigator.clipboard.writeText(fullUrl);
+      alert("Invitation link copied to clipboard!");
     }
   };
 
@@ -139,10 +138,10 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="button"
-                onClick={handleCopyFullInvitation}
+                onClick={handleCopyInviteLink}
                 className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-xl text-sm transition-colors cursor-pointer"
               >
-                Copy Full Zoom Invitation
+                Copy Invitation Link
               </button>
               <button
                 type="button"
