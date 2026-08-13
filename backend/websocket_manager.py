@@ -235,6 +235,13 @@ class ConnectionManager:
 
             del room.participants[client_token]
 
+            if len(room.participants) == 0:
+                db_end = SessionLocal()
+                try:
+                    crud.update_meeting_status(db_end, meeting_id, "ENDED")
+                finally:
+                    db_end.close()
+
     async def broadcast(self, meeting_id: str, message: dict, exclude_token: Optional[str] = None):
         if meeting_id not in self.rooms:
             return
