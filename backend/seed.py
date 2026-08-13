@@ -2,10 +2,20 @@ import datetime
 from database import SessionLocal, engine, Base
 from models import Meeting, Participant
 
+from sqlalchemy import text
+
 def seed_db():
     # Ensure tables exist
     Base.metadata.create_all(bind=engine)
     
+    # Auto-migration for pre-existing SQLite database file
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE meetings ADD COLUMN invitees TEXT;"))
+            conn.commit()
+        except Exception:
+            pass
+
     db = SessionLocal()
     try:
         # Idempotent check: only seed if no meetings exist in DB

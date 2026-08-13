@@ -25,10 +25,19 @@ import auth
 from seed import seed_db
 from websocket_manager import manager
 
+from sqlalchemy import text
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database tables exist
     Base.metadata.create_all(bind=engine)
+    # Auto-migration: Ensure new columns exist on pre-existing SQLite database tables
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE meetings ADD COLUMN invitees TEXT;"))
+            conn.commit()
+        except Exception:
+            pass
     # Run idempotent seed on boot (checks if DB is empty before populating)
     seed_db()
     yield
