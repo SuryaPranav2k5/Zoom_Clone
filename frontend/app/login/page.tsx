@@ -33,29 +33,11 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
     try {
-      // Simulate Google OAuth ID Token for demonstration
       const simulatedGoogleToken = "mock_google_id_token_" + Date.now();
-      // In production with client ID: Google One-Tap or button returns credential
-      // Here we demo Google Sign-In with fallback user
-      await loginWithGoogle(simulatedGoogleToken).catch(() => {
-        // Fallback for local demo without live Google API key
-        login("google.user@example.com", "googlepassword123").catch(async () => {
-          await useAuth;
-        });
-      });
+      await loginWithGoogle(simulatedGoogleToken);
       router.push("/");
     } catch (err: any) {
-      // Create instant Google user demo session
-      localStorage.setItem("zoom_auth_token", "demo_google_token_123");
-      localStorage.setItem("zoom_auth_user", JSON.stringify({
-        id: 99,
-        full_name: "Google User",
-        email: "google.user@gmail.com",
-        avatar_url: "https://lh3.googleusercontent.com/a/default-user",
-        provider: "GOOGLE",
-        created_at: new Date().toISOString()
-      }));
-      window.location.href = "/";
+      setError(err.message || "Google Sign-In failed.");
     } finally {
       setIsSubmitting(false);
     }

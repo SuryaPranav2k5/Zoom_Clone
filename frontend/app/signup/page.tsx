@@ -38,16 +38,7 @@ export default function SignupPage() {
       await loginWithGoogle(simulatedGoogleToken);
       router.push("/");
     } catch (err: any) {
-      localStorage.setItem("zoom_auth_token", "demo_google_token_123");
-      localStorage.setItem("zoom_auth_user", JSON.stringify({
-        id: 99,
-        full_name: "Google User",
-        email: "google.user@gmail.com",
-        avatar_url: "https://lh3.googleusercontent.com/a/default-user",
-        provider: "GOOGLE",
-        created_at: new Date().toISOString()
-      }));
-      window.location.href = "/";
+      setError(err.message || "Google Sign-In failed.");
     } finally {
       setIsSubmitting(false);
     }
