@@ -279,13 +279,12 @@ export default function MeetingRoomPage({ params }: { params: Promise<{ id: stri
 
         case "KICKED":
           sessionStorage.removeItem(`zoom_session_${meetingId}`);
-          showToast(data.reason || "You were removed from the meeting by the host.", "error");
-          setTimeout(() => router.push("/"), 2500);
+          router.push("/");
           break;
 
         case "MEETING_ENDED":
-          showToast(`Meeting ended: ${data.message}`, "info");
-          setTimeout(() => router.push("/"), 2500);
+          sessionStorage.removeItem(`zoom_session_${meetingId}`);
+          router.push("/");
           break;
 
         case "CHAT_MESSAGE":
