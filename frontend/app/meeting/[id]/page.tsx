@@ -82,7 +82,48 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnectionsRef = useRef<{ [token: string]: RTCPeerConnection }>({});
   const remoteStreamsRef = useRef<{ [token: string]: MediaStream }>({});
-  const [, setForceRender] = useState(0);
+  const pendingCandidatesRef = useRef<{ [token: string]: RTCIceCandidateInit[] }>({});
+  const [remoteStreamsMap, setRemoteStreamsMap] = useState<Record<string, MediaStream>>({});
+
+  // Helper to generate a synthetic canvas video stream when physical camera is busy or blocked
+  const createFallbackStream = (name: string): MediaStream => {
+    if (typeof window === "undefined") return new MediaStream();
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 360;
+    const ctx = canvas.getContext("2d");
+
+    if (ctx) {
+      let angle = 0;
+      const draw = () => {
+        angle += 0.05;
+        const grad = ctx.createLinearGradient(0, 0, 640, 360);
+        grad.addColorStop(0, "#1e1b4b");
+        grad.addColorStop(1, "#312e81");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 640, 360);
+
+        ctx.beginPath();
+        ctx.arc(320, 180 + Math.sin(angle) * 10, 60, 0, Math.PI * 2);
+        ctx.fillStyle = "#4f46e5";
+        ctx.fill();
+        ctx.strokeStyle = "#818cf8";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const initials = name ? name.slice(0, 2).toUpperCase() : "P";
+        ctx.fillText(initials, 320, 180 + Math.sin(angle) * 10);
+
+        requestAnimationFrame(draw);
+      };
+      draw();
+    }
+    return canvas.captureStream(30);
+  };
 
   // 1. Client Token & Media Setup
   useEffect(() => {
@@ -104,11 +145,30 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-        // Set initial mic/video tracks state
         stream.getAudioTracks().forEach((t) => (t.enabled = initialMic));
         stream.getVideoTracks().forEach((t) => (t.enabled = initialVideo));
+
+        // Hot-swap senders in any RTCPeerConnection created during the async getUserMedia() race window
+        Object.values(peerConnectionsRef.current).forEach((pc) => {
+          const videoSender = pc.getSenders().find((s) => s.track?.kind === "video");
+          const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+          const realVideoTrack = stream.getVideoTracks()[0];
+          const realAudioTrack = stream.getAudioTracks()[0];
+
+          if (videoSender && realVideoTrack) {
+            videoSender.replaceTrack(realVideoTrack).catch((e) => console.warn("replaceTrack video err:", e));
+          }
+          if (audioSender && realAudioTrack) {
+            audioSender.replaceTrack(realAudioTrack).catch((e) => console.warn("replaceTrack audio err:", e));
+          }
+        });
       } catch (err) {
-        console.warn("Could not access webcam/mic. Operating in fallback mode:", err);
+        console.warn("Could not access physical webcam. Creating fallback stream:", err);
+        const fallbackStream = createFallbackStream(nameQuery);
+        localStreamRef.current = fallbackStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = fallbackStream;
+        }
       }
     }
 
@@ -237,6 +297,21 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
     };
   }, [clientToken, meetingId]);
 
+  // Helper to flush pending ICE candidates after setRemoteDescription
+  const flushPendingCandidates = async (token: string, pc: RTCPeerConnection) => {
+    const candidates = pendingCandidatesRef.current[token];
+    if (candidates && candidates.length > 0) {
+      for (const cand of candidates) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (err) {
+          console.warn("[WEBRTC] Error adding queued ICE candidate:", err);
+        }
+      }
+      pendingCandidatesRef.current[token] = [];
+    }
+  };
+
   // WebRTC Signal Handlers
   const initiateWebRTCConnection = async (targetToken: string, isInitiator: boolean) => {
     if (peerConnectionsRef.current[targetToken]) return;
@@ -244,15 +319,27 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnectionsRef.current[targetToken] = pc;
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
-      });
+    if (!localStreamRef.current) {
+      localStreamRef.current = createFallbackStream(nameQuery);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
     }
 
+    localStreamRef.current.getTracks().forEach((track) => {
+      pc.addTrack(track, localStreamRef.current!);
+    });
+
     pc.ontrack = (event) => {
-      remoteStreamsRef.current[targetToken] = event.streams[0];
-      setForceRender((n) => n + 1);
+      let stream = remoteStreamsRef.current[targetToken];
+      if (!stream) {
+        stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream();
+        remoteStreamsRef.current[targetToken] = stream;
+      }
+      if (!stream.getTracks().includes(event.track)) {
+        stream.addTrack(event.track);
+      }
+      setRemoteStreamsMap((prev) => ({ ...prev, [targetToken]: stream }));
     };
 
     pc.onicecandidate = (event) => {
@@ -281,56 +368,91 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
   };
 
   const handleWebRTCOffer = async (senderToken: string, offer: RTCSessionDescriptionInit) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peerConnectionsRef.current[senderToken] = pc;
+    let pc = peerConnectionsRef.current[senderToken];
+    if (!pc) {
+      pc = new RTCPeerConnection(ICE_SERVERS);
+      peerConnectionsRef.current[senderToken] = pc;
 
-    if (localStreamRef.current) {
+      if (!localStreamRef.current) {
+        localStreamRef.current = createFallbackStream(nameQuery);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
+      }
+
       localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
+        pc!.addTrack(track, localStreamRef.current!);
       });
+
+      pc.ontrack = (event) => {
+        let stream = remoteStreamsRef.current[senderToken];
+        if (!stream) {
+          stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream();
+          remoteStreamsRef.current[senderToken] = stream;
+        }
+        if (!stream.getTracks().includes(event.track)) {
+          stream.addTrack(event.track);
+        }
+        setRemoteStreamsMap((prev) => ({ ...prev, [senderToken]: stream }));
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && wsRef.current) {
+          wsRef.current.send(
+            JSON.stringify({
+              type: "WEBRTC_ICE_CANDIDATE",
+              target_token: senderToken,
+              payload: event.candidate,
+            })
+          );
+        }
+      };
     }
 
-    pc.ontrack = (event) => {
-      remoteStreamsRef.current[senderToken] = event.streams[0];
-      setForceRender((n) => n + 1);
-    };
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      await flushPendingCandidates(senderToken, pc);
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate && wsRef.current) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "WEBRTC_ICE_CANDIDATE",
-            target_token: senderToken,
-            payload: event.candidate,
-          })
-        );
-      }
-    };
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    wsRef.current?.send(
-      JSON.stringify({
-        type: "WEBRTC_ANSWER",
-        target_token: senderToken,
-        payload: answer,
-      })
-    );
+      wsRef.current?.send(
+        JSON.stringify({
+          type: "WEBRTC_ANSWER",
+          target_token: senderToken,
+          payload: answer,
+        })
+      );
+    } catch (err) {
+      console.warn("[WEBRTC] setRemoteDescription offer error:", err);
+    }
   };
 
   const handleWebRTCAnswer = async (senderToken: string, answer: RTCSessionDescriptionInit) => {
     const pc = peerConnectionsRef.current[senderToken];
-    if (pc) {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    if (pc && pc.signalingState === "have-local-offer") {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        await flushPendingCandidates(senderToken, pc);
+      } catch (err) {
+        console.warn("[WEBRTC] setRemoteDescription answer error:", err);
+      }
     }
   };
 
   const handleWebRTCCandidate = async (senderToken: string, candidate: RTCIceCandidateInit) => {
     const pc = peerConnectionsRef.current[senderToken];
-    if (pc) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("[WEBRTC] Candidate add error:", err);
+      }
+    } else {
+      if (!pendingCandidatesRef.current[senderToken]) {
+        pendingCandidatesRef.current[senderToken] = [];
+      }
+      pendingCandidatesRef.current[senderToken].push(candidate);
     }
   };
 
@@ -342,7 +464,14 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
     if (remoteStreamsRef.current[token]) {
       delete remoteStreamsRef.current[token];
     }
-    setForceRender((n) => n + 1);
+    if (pendingCandidatesRef.current[token]) {
+      delete pendingCandidatesRef.current[token];
+    }
+    setRemoteStreamsMap((prev) => {
+      const copy = { ...prev };
+      delete copy[token];
+      return copy;
+    });
   };
 
   // Actions
@@ -352,6 +481,12 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = nextState));
     }
+    Object.values(peerConnectionsRef.current).forEach((pc) => {
+      const sender = pc.getSenders().find((s) => s.track?.kind === "audio");
+      if (sender && sender.track) {
+        sender.track.enabled = nextState;
+      }
+    });
     wsRef.current?.send(
       JSON.stringify({
         type: "TOGGLE_AUDIO",
@@ -360,12 +495,38 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
     );
   };
 
-  const toggleVideo = () => {
+  const toggleVideo = async () => {
     const nextState = !isVideoOn;
     setIsVideoOn(nextState);
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = nextState));
+
+    if (!nextState) {
+      // Turning video OFF: Stop physical camera hardware tracks so laptop LED light turns OFF 100%
+      if (localStreamRef.current) {
+        localStreamRef.current.getVideoTracks().forEach((t) => {
+          t.stop();
+          localStreamRef.current?.removeTrack(t);
+        });
+      }
+    } else {
+      // Turning video ON: Re-acquire camera stream and hot-swap RTCRtpSender tracks
+      try {
+        const newMedia = await navigator.mediaDevices.getUserMedia({ video: true });
+        const newVideoTrack = newMedia.getVideoTracks()[0];
+        if (newVideoTrack && localStreamRef.current) {
+          localStreamRef.current.addTrack(newVideoTrack);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+          }
+          Object.values(peerConnectionsRef.current).forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+            if (sender) sender.replaceTrack(newVideoTrack).catch(() => {});
+          });
+        }
+      } catch (err) {
+        console.warn("Could not re-enable physical camera:", err);
+      }
     }
+
     wsRef.current?.send(
       JSON.stringify({
         type: "TOGGLE_VIDEO",
@@ -543,7 +704,7 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
           {participants
             .filter((p) => p.client_token !== clientToken)
             .map((p) => {
-              const remoteStream = remoteStreamsRef.current[p.client_token];
+              const remoteStream = remoteStreamsMap[p.client_token] || remoteStreamsRef.current[p.client_token];
               return (
                 <div
                   key={p.client_token}
@@ -554,7 +715,10 @@ export default function MeetingRoom({ params }: { params: Promise<{ id: string }
                       autoPlay
                       playsInline
                       ref={(el) => {
-                        if (el && remoteStream) el.srcObject = remoteStream;
+                        if (el && remoteStream && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(() => {});
+                        }
                       }}
                       className="w-full h-full object-cover"
                     />
