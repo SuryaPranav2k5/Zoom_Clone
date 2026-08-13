@@ -81,10 +81,10 @@ def get_upcoming_meetings(db: Session, limit: int = 10) -> List[Meeting]:
     ).order_by(Meeting.scheduled_start_time.asc()).limit(limit).all()
 
 def get_recent_meetings(db: Session, limit: int = 10) -> List[Meeting]:
-    """Fetch past/ended and active instant/scheduled meetings ordered by creation/end time descending"""
-    return db.query(Meeting).filter(
+    """Fetch past/ended and active meetings that have at least 1 participant, ordered by creation time descending"""
+    return db.query(Meeting).join(Participant, Participant.meeting_id == Meeting.id).filter(
         Meeting.status.in_(["ENDED", "LIVE"])
-    ).order_by(Meeting.created_at.desc()).limit(limit).all()
+    ).group_by(Meeting.id).order_by(Meeting.created_at.desc()).limit(limit).all()
 
 def update_meeting_status(db: Session, meeting_id: str, new_status: str) -> Optional[Meeting]:
     meeting = get_meeting(db, meeting_id)
