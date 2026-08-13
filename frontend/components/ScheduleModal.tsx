@@ -58,6 +58,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
         title: title.trim(),
         description: description.trim() || null,
         host_name: hostName.trim() || "Host",
+        host_email: user?.email || null,
         scheduled_start_time: new Date(startDate).toISOString(),
         duration_minutes: Number(durationMinutes),
         passcode: enablePasscode && passcode.trim() ? passcode.trim() : null,

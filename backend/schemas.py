@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 # Meeting Creation Requests
 class InstantMeetingCreate(BaseModel):
     host_name: str = Field(default="Host", min_length=1, max_length=100)
+    host_email: Optional[str] = None
     title: Optional[str] = Field(default="Instant Meeting")
     passcode: Optional[str] = Field(default=None)
 
@@ -12,6 +13,7 @@ class ScheduledMeetingCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: Optional[str] = None
     host_name: str = Field(default="Host", min_length=1, max_length=100)
+    host_email: Optional[str] = None
     scheduled_start_time: datetime.datetime
     duration_minutes: int = Field(default=40, ge=5, le=1440)
     passcode: Optional[str] = None
@@ -39,6 +41,7 @@ class MeetingResponse(BaseModel):
     started_at: Optional[datetime.datetime] = None
     ended_at: Optional[datetime.datetime] = None
     host_name: str
+    host_email: Optional[str] = None
     invitees: Optional[str] = None
     invite_link: Optional[str] = None
 

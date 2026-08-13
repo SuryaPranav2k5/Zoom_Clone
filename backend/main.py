@@ -33,11 +33,16 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # Auto-migration: Ensure new columns exist on pre-existing SQLite database tables
     with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE meetings ADD COLUMN invitees TEXT;"))
-            conn.commit()
-        except Exception:
-            pass
+      try:
+        conn.execute(text("ALTER TABLE meetings ADD COLUMN invitees TEXT;"))
+        conn.commit()
+      except Exception:
+        pass
+      try:
+        conn.execute(text("ALTER TABLE meetings ADD COLUMN host_email TEXT;"))
+        conn.commit()
+      except Exception:
+        pass
     # Run idempotent seed on boot (checks if DB is empty before populating)
     seed_db()
     yield

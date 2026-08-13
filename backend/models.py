@@ -18,6 +18,7 @@ class Meeting(Base):
     started_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)
     host_name = Column(String(255), nullable=False, default="Host") # Intentional denormalization for fast O(1) dashboard listing
+    host_email = Column(String(255), nullable=True)
     invitees = Column(Text, nullable=True) # Comma-separated list of invited attendee emails/names
 
     @property

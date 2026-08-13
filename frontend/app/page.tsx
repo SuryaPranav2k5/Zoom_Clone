@@ -34,6 +34,7 @@ interface MeetingItem {
   created_at: string;
   ended_at?: string;
   host_name: string;
+  host_email?: string;
   invitees?: string;
   invite_link?: string;
 }
@@ -87,19 +88,28 @@ export default function ZoomDashboard() {
   // Filter meetings for authenticated users vs guest mode (evaluators)
   const displayedUpcomingMeetings = useMemo(() => {
     if (!user) return upcomingMeetings;
-    const userEmail = user.email.toLowerCase();
-    const userName = user.full_name.toLowerCase();
+    const userEmail = user.email.toLowerCase().trim();
+    const userName = user.full_name.toLowerCase().trim();
     return upcomingMeetings.filter((m) => {
-      const isHost = m.host_name.toLowerCase() === userName;
-      const isInvited = m.invitees ? m.invitees.toLowerCase().includes(userEmail) || m.invitees.toLowerCase().includes(userName) : false;
+      const isHost = m.host_email
+        ? m.host_email.toLowerCase().trim() === userEmail
+        : m.host_name.toLowerCase().trim() === userName;
+      const isInvited = m.invitees
+        ? m.invitees.toLowerCase().includes(userEmail) || m.invitees.toLowerCase().includes(userName)
+        : false;
       return isHost || isInvited;
     });
   }, [upcomingMeetings, user]);
 
   const displayedRecentMeetings = useMemo(() => {
     if (!user) return recentMeetings;
-    const userName = user.full_name.toLowerCase();
-    return recentMeetings.filter((m) => m.host_name.toLowerCase() === userName);
+    const userEmail = user.email.toLowerCase().trim();
+    const userName = user.full_name.toLowerCase().trim();
+    return recentMeetings.filter((m) => {
+      return m.host_email
+        ? m.host_email.toLowerCase().trim() === userEmail
+        : m.host_name.toLowerCase().trim() === userName;
+    });
   }, [recentMeetings, user]);
 
   const handleInstantMeeting = async () => {
@@ -108,7 +118,11 @@ export default function ZoomDashboard() {
       const res = await fetch("http://127.0.0.1:8000/api/meetings/instant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host_name: hostName, title: `${hostName}'s Zoom Meeting` }),
+        body: JSON.stringify({
+          host_name: hostName,
+          host_email: user?.email || null,
+          title: `${hostName}'s Zoom Meeting`
+        }),
       });
       if (res.ok) {
         const data = await res.json();

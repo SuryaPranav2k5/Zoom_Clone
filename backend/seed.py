@@ -15,6 +15,11 @@ def seed_db():
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE meetings ADD COLUMN host_email TEXT;"))
+            conn.commit()
+        except Exception:
+            pass
 
     db = SessionLocal()
     try:

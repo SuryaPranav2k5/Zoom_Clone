@@ -37,7 +37,8 @@ def create_instant_meeting(db: Session, data: InstantMeetingCreate) -> Meeting:
         created_at=now,
         started_at=now,
         duration_minutes=40,
-        host_name=data.host_name
+        host_name=data.host_name,
+        host_email=data.host_email
     )
     db.add(meeting)
     db.commit()
@@ -61,6 +62,7 @@ def create_scheduled_meeting(db: Session, data: ScheduledMeetingCreate) -> Meeti
         duration_minutes=data.duration_minutes,
         created_at=now,
         host_name=data.host_name,
+        host_email=data.host_email,
         invitees=data.invitees
     )
     db.add(meeting)
