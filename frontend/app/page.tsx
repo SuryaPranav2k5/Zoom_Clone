@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Video,
@@ -83,6 +83,24 @@ export default function ZoomDashboard() {
   useEffect(() => {
     fetchMeetings();
   }, []);
+
+  // Filter meetings for authenticated users vs guest mode (evaluators)
+  const displayedUpcomingMeetings = useMemo(() => {
+    if (!user) return upcomingMeetings;
+    const userEmail = user.email.toLowerCase();
+    const userName = user.full_name.toLowerCase();
+    return upcomingMeetings.filter((m) => {
+      const isHost = m.host_name.toLowerCase() === userName;
+      const isInvited = m.invitees ? m.invitees.toLowerCase().includes(userEmail) || m.invitees.toLowerCase().includes(userName) : false;
+      return isHost || isInvited;
+    });
+  }, [upcomingMeetings, user]);
+
+  const displayedRecentMeetings = useMemo(() => {
+    if (!user) return recentMeetings;
+    const userName = user.full_name.toLowerCase();
+    return recentMeetings.filter((m) => m.host_name.toLowerCase() === userName);
+  }, [recentMeetings, user]);
 
   const handleInstantMeeting = async () => {
     try {
@@ -339,7 +357,7 @@ export default function ZoomDashboard() {
                     : "text-gray-500 hover:text-gray-800"
                 }`}
               >
-                Upcoming ({upcomingMeetings.length})
+                Upcoming ({displayedUpcomingMeetings.length})
               </button>
               <button
                 onClick={() => setActiveTab("recent")}
@@ -349,7 +367,7 @@ export default function ZoomDashboard() {
                     : "text-gray-500 hover:text-gray-800"
                 }`}
               >
-                Recent ({recentMeetings.length})
+                Recent ({displayedRecentMeetings.length})
               </button>
             </div>
           </div>
@@ -362,13 +380,13 @@ export default function ZoomDashboard() {
                 <span className="text-xs">Loading meetings...</span>
               </div>
             ) : activeTab === "upcoming" ? (
-              upcomingMeetings.length === 0 ? (
+              displayedUpcomingMeetings.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Calendar className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-medium">No upcoming meetings scheduled.</p>
                 </div>
               ) : (
-                upcomingMeetings.map((m) => (
+                displayedUpcomingMeetings.map((m) => (
                   <div
                     key={m.id}
                     className="p-4 bg-gray-50/80 hover:bg-blue-50/40 rounded-2xl border border-gray-200/80 transition-all space-y-2 group"
@@ -421,13 +439,13 @@ export default function ZoomDashboard() {
                 ))
               )
             ) : (
-              recentMeetings.length === 0 ? (
+              displayedRecentMeetings.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Clock className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-medium">No recent meeting history found.</p>
                 </div>
               ) : (
-                recentMeetings.map((m) => (
+                displayedRecentMeetings.map((m) => (
                   <div
                     key={m.id}
                     className="p-4 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-2"
