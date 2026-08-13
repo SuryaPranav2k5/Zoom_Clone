@@ -45,6 +45,7 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdMeetingInfo, setCreatedMeetingInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
 
   if (!isOpen) return null;
 
@@ -84,8 +85,6 @@ export default function ScheduleModal({ isOpen, onClose, onScheduledSuccess }: S
       setIsSubmitting(false);
     }
   };
-
-  const [isCopied, setIsCopied] = useState(false);
 
   const handleCopyInviteLink = () => {
     if (createdMeetingInfo) {
