@@ -17,8 +17,10 @@ import {
   Check,
   RefreshCw
 } from "lucide-react";
+import Link from "next/link";
 import JoinModal from "../components/JoinModal";
 import ScheduleModal from "../components/ScheduleModal";
+import { useAuth } from "../context/AuthContext";
 
 interface MeetingItem {
   id: string;
@@ -37,6 +39,7 @@ interface MeetingItem {
 
 export default function ZoomDashboard() {
   const router = useRouter();
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"upcoming" | "recent">("upcoming");
   const [upcomingMeetings, setUpcomingMeetings] = useState<MeetingItem[]>([]);
   const [recentMeetings, setRecentMeetings] = useState<MeetingItem[]>([]);
@@ -45,6 +48,7 @@ export default function ZoomDashboard() {
   // Modals state
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -80,14 +84,15 @@ export default function ZoomDashboard() {
 
   const handleInstantMeeting = async () => {
     try {
+      const hostName = user?.full_name || "Host User";
       const res = await fetch("http://127.0.0.1:8000/api/meetings/instant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host_name: "Host User", title: "Instant Meeting" }),
+        body: JSON.stringify({ host_name: hostName, title: `${hostName}'s Zoom Meeting` }),
       });
       if (res.ok) {
         const data = await res.json();
-        router.push(`/meeting/${data.id}?host=true`);
+        router.push(`/meeting/${data.id}?host=true&name=${encodeURIComponent(hostName)}`);
       }
     } catch (err) {
       alert("Unable to create instant meeting. Ensure backend server is running.");
@@ -156,17 +161,76 @@ export default function ZoomDashboard() {
         </div>
 
         {/* User & Settings Right Bar */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={fetchMeetings}
             title="Refresh Data"
-            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
           </button>
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100">
-            AR
-          </div>
+
+          {user ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2.5 p-1.5 hover:bg-gray-100 rounded-full transition-all cursor-pointer"
+              >
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.full_name}
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-blue-100">
+                    {user.full_name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="hidden sm:inline text-xs font-semibold text-gray-700">
+                  {user.full_name}
+                </span>
+              </button>
+
+              {userDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-xs font-bold text-gray-900 truncate">{user.full_name}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
+                    <span className="inline-block mt-1 bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-blue-200">
+                      {user.provider} ACCOUNT
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      setUserDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-xl transition-all"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className="zoom-blue-btn px-3.5 py-1.5 text-xs font-semibold text-white rounded-xl shadow-xs transition-all"
+              >
+                Sign Up Free
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

@@ -67,3 +67,33 @@ class ParticipantResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# User Authentication Schemas
+class UserSignupRequest(BaseModel):
+    full_name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=6, max_length=128)
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+class UserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    avatar_url: Optional[str] = None
+    provider: str
+    created_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+

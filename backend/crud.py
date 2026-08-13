@@ -137,7 +137,60 @@ def get_or_create_participant(
             is_kicked=False,
             joined_at=now
         )
-        db.add(participant)
+from models import Meeting, Participant, User
+from schemas import InstantMeetingCreate, ScheduledMeetingCreate, UserSignupRequest
+import auth
+
+# Existing CRUD functions...
+# (lines above)
+
+def create_user(db: Session, data: UserSignupRequest) -> User:
+    hashed_pwd, salt = auth.hash_password(data.password)
+    user = User(
+        email=data.email.strip().lower(),
+        full_name=data.full_name.strip(),
+        hashed_password=hashed_pwd,
+        salt=salt,
+        provider="EMAIL",
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
+    return db.query(User).filter(User.email == email.strip().lower()).first()
+
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    return db.query(User).filter(User.id == user_id).first()
+
+def verify_user_credentials(db: Session, email: str, password: str) -> Optional[User]:
+    user = get_user_by_email(db, email)
+    if user and user.hashed_password and user.salt:
+        if auth.verify_password(password, user.hashed_password, user.salt):
+            return user
+    return None
+
+def create_or_get_google_user(db: Session, email: str, full_name: str, avatar_url: Optional[str]) -> User:
+    user = get_user_by_email(db, email)
+    if not user:
+        user = User(
+            email=email.strip().lower(),
+            full_name=full_name.strip(),
+            hashed_password=None,
+            salt=None,
+            avatar_url=avatar_url,
+            provider="GOOGLE",
+            created_at=datetime.datetime.utcnow()
+        )
+        db.add(user)
         db.commit()
-        db.refresh(participant)
-        return participant
+        db.refresh(user)
+    else:
+        if avatar_url and not user.avatar_url:
+            user.avatar_url = avatar_url
+            db.commit()
+            db.refresh(user)
+    return user
+

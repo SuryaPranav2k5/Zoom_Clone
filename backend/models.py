@@ -40,3 +40,16 @@ class Participant(Base):
     __table_args__ = (
         UniqueConstraint("meeting_id", "client_token", name="uix_meeting_client"),
     )
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    full_name = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True) # Nullable for Google OAuth users
+    salt = Column(String(255), nullable=True)
+    avatar_url = Column(String(512), nullable=True)
+    provider = Column(String(20), nullable=False, default="EMAIL") # EMAIL, GOOGLE
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+

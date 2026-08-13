@@ -13,9 +13,15 @@ from schemas import (
     ValidateMeetingRequest,
     ValidatePasscodeRequest,
     MeetingResponse,
-    MeetingValidationResponse
+    MeetingValidationResponse,
+    UserSignupRequest,
+    UserLoginRequest,
+    GoogleAuthRequest,
+    UserResponse,
+    AuthTokenResponse
 )
 import crud
+import auth
 from seed import seed_db
 from websocket_manager import manager
 
@@ -56,6 +62,66 @@ def read_root():
         "service": "Zoom Clone API",
         "docs_url": "/docs"
     }
+
+# --------------------------
+# User Authentication APIs
+# --------------------------
+
+@app.post("/api/auth/signup", response_model=AuthTokenResponse)
+def signup(data: UserSignupRequest, db: Session = Depends(get_db)):
+    existing = crud.get_user_by_email(db, data.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    user = crud.create_user(db, data)
+    token = auth.create_access_token(user.id)
+    return AuthTokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user)
+    )
+
+@app.post("/api/auth/login", response_model=AuthTokenResponse)
+def login(data: UserLoginRequest, db: Session = Depends(get_db)):
+    user = crud.verify_user_credentials(db, data.email, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    token = auth.create_access_token(user.id)
+    return AuthTokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user)
+    )
+
+@app.post("/api/auth/google", response_model=AuthTokenResponse)
+def google_auth(data: GoogleAuthRequest, db: Session = Depends(get_db)):
+    google_payload = auth.verify_google_id_token(data.id_token)
+    if not google_payload:
+        raise HTTPException(status_code=400, detail="Invalid or expired Google ID Token.")
+    
+    user = crud.create_or_get_google_user(
+        db=db,
+        email=google_payload["email"],
+        full_name=google_payload["full_name"],
+        avatar_url=google_payload.get("picture")
+    )
+    token = auth.create_access_token(user.id)
+    return AuthTokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(user)
+    )
+
+@app.get("/api/auth/me", response_model=UserResponse)
+def get_me(authorization: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization token.")
+    
+    token = authorization.replace("Bearer ", "").strip()
+    user_id = auth.get_user_id_from_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired session token.")
+    
+    user = crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return UserResponse.model_validate(user)
 
 # --------------------------
 # REST APIs for Meetings

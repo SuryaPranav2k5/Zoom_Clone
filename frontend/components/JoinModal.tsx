@@ -6,7 +6,7 @@ import { X, Mic, MicOff, Video, VideoOff, Key, ShieldAlert } from "lucide-react"
 interface JoinModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoin: (meetingId: str, displayName: str, passcode?: str, micOn?: boolean, videoOn?: boolean) => void;
+  onJoin: (meetingId: string, displayName: string, passcode?: string, micOn?: boolean, videoOn?: boolean) => void;
   initialMeetingId?: string;
 }
 

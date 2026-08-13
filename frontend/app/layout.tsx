@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Zoom - Video Conferencing Platform",
@@ -16,7 +17,9 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="https://zoom.us/favicon.ico" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
