@@ -28,6 +28,8 @@ export default function LoginPage() {
           (window as any)._googleGsiInitialized = true;
           (window as any).google.accounts.id.initialize({
             client_id: googleClientId,
+            auto_select: false,
+            use_fedcm_for_prompt: false,
             callback: async (response: any) => {
               if (response.credential) {
                 try {
@@ -65,7 +67,11 @@ export default function LoginPage() {
 
     // If real Google Client ID is configured, trigger Google prompt
     if (googleClientId && googleClientId !== "your_google_client_id_here" && (window as any).google) {
-      (window as any).google.accounts.id.prompt();
+      (window as any).google.accounts.id.prompt((notification: any) => {
+        if (notification.isDismissedMoment() || notification.isSkippedMoment()) {
+          // User closed or dismissed the popup without signing in - clean no-op
+        }
+      });
       return;
     }
 

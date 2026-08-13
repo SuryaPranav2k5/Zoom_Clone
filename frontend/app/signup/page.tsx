@@ -29,6 +29,8 @@ export default function SignupPage() {
           (window as any)._googleGsiInitialized = true;
           (window as any).google.accounts.id.initialize({
             client_id: googleClientId,
+            auto_select: false,
+            use_fedcm_for_prompt: false,
             callback: async (response: any) => {
               if (response.credential) {
                 try {
@@ -54,7 +56,7 @@ export default function SignupPage() {
       await signup(fullName, email, password);
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "Failed to create account. Please try again.");
+      setError(err.message || "Failed to create account. Email may already be in use.");
     } finally {
       setIsSubmitting(false);
     }
@@ -65,7 +67,11 @@ export default function SignupPage() {
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
     if (googleClientId && googleClientId !== "your_google_client_id_here" && (window as any).google) {
-      (window as any).google.accounts.id.prompt();
+      (window as any).google.accounts.id.prompt((notification: any) => {
+        if (notification.isDismissedMoment() || notification.isSkippedMoment()) {
+          // User closed or dismissed the popup without signing in - clean no-op
+        }
+      });
       return;
     }
 
