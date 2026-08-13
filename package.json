@@ -1,0 +1,14 @@
+{
+  "name": "zoom-clone-root",
+  "version": "1.0.0",
+  "description": "Zoom Clone Fullstack Web Application Root",
+  "scripts": {
+    "start": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"yellow,cyan\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && .venv\\Scripts\\python -m uvicorn main:app --port 8000 --reload",
+    "start:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && .venv\\Scripts\\python seed.py"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
