@@ -30,7 +30,7 @@ class ConnectionManager:
             self.rooms[meeting_id] = MeetingRoom(meeting_id)
         return self.rooms[meeting_id]
 
-    async def handle_connect(
+    async def connect(
         self,
         websocket: WebSocket,
         meeting_id: str,
@@ -40,14 +40,6 @@ class ConnectionManager:
     ):
         await websocket.accept()
         room = self.get_or_create_room(meeting_id)
-
-        if room.is_ended:
-            await websocket.send_json({
-                "type": "JOIN_REJECTED",
-                "reason": "This meeting has already ended."
-            })
-            await websocket.close()
-            return
 
         db: Session = SessionLocal()
         try:
@@ -66,6 +58,19 @@ class ConnectionManager:
                 (meeting.host_email and display_name.lower().strip() == meeting.host_email.lower().strip()) or
                 (meeting.host_name and display_name.lower().strip() == meeting.host_name.lower().strip())
             )
+
+            # If room was marked as ended, allow host to re-open/reactivate the room
+            if room.is_ended or meeting.status == "ENDED":
+                if is_actual_host:
+                    room.is_ended = False
+                    crud.update_meeting_status(db, meeting.id, "LIVE")
+                else:
+                    await websocket.send_json({
+                        "type": "JOIN_REJECTED",
+                        "reason": "This meeting has already ended."
+                    })
+                    await websocket.close()
+                    return
 
             # Restrict early attendee entry before scheduled meeting start time
             if meeting.status == "UPCOMING" and meeting.scheduled_start_time and now < meeting.scheduled_start_time:
