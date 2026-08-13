@@ -132,19 +132,21 @@ export default function JoinModal({ isOpen, onClose, onJoin, initialMeetingId = 
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-              Meeting ID or Personal Link Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 845-912-3401"
-              value={meetingIdInput}
-              onChange={(e) => handleFormatMeetingId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-hidden"
-              required
-            />
-          </div>
+          {!initialMeetingId && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Meeting ID or Personal Link Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 845-912-3401"
+                value={meetingIdInput}
+                onChange={(e) => handleFormatMeetingId(e.target.value)}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-hidden"
+                required
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
